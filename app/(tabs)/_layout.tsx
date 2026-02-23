@@ -1,3 +1,4 @@
+// app/(tabs)/_layout.tsx
 import { auth } from "@/src/lib/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, router } from "expo-router";
@@ -36,12 +37,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Sorular",
+          title: "Dersler",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
+            <Ionicons name="book" size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="add"
         options={{
@@ -52,7 +54,15 @@ export default function TabsLayout() {
         }}
       />
 
-      <Tabs.Screen name="detail/[id]" options={{ href: null }} />
+
+
+      {/* Yeni hiyerarşi route'larını TAB’da gösterme */}
+      <Tabs.Screen name="lesson/[lessonId]" options={{ href: null }} />
+      <Tabs.Screen name="lesson/[lessonId]/topic/[topicId]" options={{ href: null }} />
+      <Tabs.Screen
+        name="lesson/[lessonId]/topic/[topicId]/question/[questionId]"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }
