@@ -1,12 +1,216 @@
-// app/(tabs)/lesson/[lessonId]/topic/[topicId]/question/[questionId].tsx
 import type { Question } from "@/src/types/question";
+
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    Pressable,
+    Text,
+    View,
+} from "react-native";
 
 import { auth, db } from "@/src/lib/firebase";
 import { deleteQuestionCascade } from "@/src/services/question.service";
+
+// ✅ Zoom/Pan için
+import { Dimensions } from "react-native";
+import {
+    Gesture,
+    GestureDetector,
+    GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from "react-native-reanimated";
+
+/** Firestore Timestamp -> Date format */
+function formatCreatedAt(createdAt: any) {
+  try {
+    const d: Date | null =
+      createdAt?.toDate?.() ??
+      (createdAt?.seconds ? new Date(createdAt.seconds * 1000) : null);
+
+    if (!d) return "Tarih yok";
+    return new Intl.DateTimeFormat("tr-TR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return "Tarih yok";
+  }
+}
+
+/** Fullscreen zoomable image */
+const { width, height } = Dimensions.get("window");
+
+function FullscreenZoomImage({
+  uri,
+  visible,
+  onClose,
+}: {
+  uri: string;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  // Modal içi image boyutu (CV projesine benzer)
+  const IMG_W = width * 0.95;
+  const IMG_H = height * 0.75;
+
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // ✅ worklet clamp (iOS crash riskini azaltır)
+  const clamp = (v: number, min: number, max: number) => {
+    "worklet";
+    return Math.min(Math.max(v, min), max);
+  };
+
+  // ✅ Ölçeğe göre pan sınırları (image ekran dışına kaçmasın)
+  const boundTranslations = () => {
+    "worklet";
+    const maxX = (IMG_W * (scale.value - 1)) / 2;
+    const maxY = (IMG_H * (scale.value - 1)) / 2;
+    translateX.value = clamp(translateX.value, -maxX, maxX);
+    translateY.value = clamp(translateY.value, -maxY, maxY);
+  };
+
+  const resetTransform = () => {
+    "worklet";
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  };
+
+  // ✋ Pan
+  const pan = Gesture.Pan()
+    .onBegin(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
+      boundTranslations();
+    });
+
+  // 🤏 Pinch (focal odaklı)
+  const pinch = Gesture.Pinch()
+    .onBegin(() => {
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      const nextScale = clamp(savedScale.value * e.scale, 1, 4);
+
+      const cx = IMG_W / 2;
+      const cy = IMG_H / 2;
+      const dx = e.focalX - cx;
+      const dy = e.focalY - cy;
+
+      translateX.value =
+        savedTranslateX.value + dx - dx * (nextScale / savedScale.value);
+      translateY.value =
+        savedTranslateY.value + dy - dy * (nextScale / savedScale.value);
+
+      scale.value = nextScale;
+      boundTranslations();
+    })
+    .onEnd(() => {
+      // küçük geri dönüş
+      if (scale.value <= 1.01) {
+        scale.value = withTiming(1);
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  // 👆 Double tap reset
+  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd(() => {
+    resetTransform();
+  });
+
+  const composedGesture = Gesture.Simultaneous(pinch, pan, doubleTap);
+
+  const previewStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      onShow={() => {
+        // ✅ Modal açılınca reset (CV projesi gibi)
+        resetTransform();
+      }}
+    >
+      {/* ✅ Modal içinde mutlaka GH Root */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View className="flex-1 bg-black/95 justify-center items-center px-5">
+          {/* Kapat */}
+          <View className="w-full items-end mb-4">
+            <Pressable
+              onPress={onClose}
+              className="rounded-xl bg-white/10 px-4 py-2 border border-white/10"
+            >
+              <Text className="text-white font-semibold">Kapat</Text>
+            </Pressable>
+          </View>
+
+          {/* ✅ Pinch + Pan + DoubleTap */}
+          <GestureDetector gesture={composedGesture}>
+            <Animated.Image
+              source={{ uri }}
+              style={[
+                {
+                  width: IMG_W,
+                  height: IMG_H,
+                  borderRadius: 12,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                },
+                previewStyle,
+              ]}
+              resizeMode="contain"
+            />
+          </GestureDetector>
+
+          <Text className="text-white/50 text-xs mt-3">
+            Pinch: yakınlaştır • Sürükle: kaydır • Çift dokun: sıfırla
+          </Text>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
 
 export default function QuestionDetailScreen() {
   const { lessonId, topicId, questionId } = useLocalSearchParams<{
@@ -19,17 +223,40 @@ export default function QuestionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
+  const [lessonName, setLessonName] = useState("Ders");
+  const [topicName, setTopicName] = useState("Konu");
+
+  const [viewerOpen, setViewerOpen] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
         const user = auth.currentUser;
         if (!user || !lessonId || !topicId || !questionId) return;
 
-        const snap = await getDoc(
-          doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId, "questions", questionId)
+        // question
+        const qSnap = await getDoc(
+          doc(
+            db,
+            "users",
+            user.uid,
+            "lessons",
+            lessonId,
+            "topics",
+            topicId,
+            "questions",
+            questionId
+          )
         );
+        if (qSnap.exists()) setItem(qSnap.data() as Question);
 
-        if (snap.exists()) setItem(snap.data() as Question);
+        // header names
+        const [lSnap, tSnap] = await Promise.all([
+          getDoc(doc(db, "users", user.uid, "lessons", lessonId)),
+          getDoc(doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)),
+        ]);
+        if (lSnap.exists()) setLessonName((lSnap.data() as any)?.name ?? "Ders");
+        if (tSnap.exists()) setTopicName((tSnap.data() as any)?.name ?? "Konu");
       } finally {
         setLoading(false);
       }
@@ -42,7 +269,7 @@ export default function QuestionDetailScreen() {
 
     Alert.alert(
       "Soruyu sil?",
-      "Bu işlem geri alınamaz. Soru ve görseli (varsa) silinecek.",
+      "Bu işlem geri alınamaz. Soru ve görseli silinecek.",
       [
         { text: "Vazgeç", style: "cancel" },
         {
@@ -51,14 +278,12 @@ export default function QuestionDetailScreen() {
           onPress: async () => {
             try {
               setDeleting(true);
-
               await deleteQuestionCascade({
                 userId: user.uid,
                 lessonId,
                 topicId,
                 questionId,
               });
-
               router.back();
             } catch (e) {
               console.log("Silme hatası:", e);
@@ -91,18 +316,33 @@ export default function QuestionDetailScreen() {
     );
   }
 
+  const createdAtText = formatCreatedAt(item.createdAt);
+
   return (
-    <View className="flex-1 bg-black p-6 pt-14">
-      <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-2xl font-bold text-white">Detay</Text>
+    <View className="flex-1 bg-black">
+      {/* ✅ Header: sol geri, ortada konu adı, sağ sil */}
+      <View className="pt-14 px-6 pb-4 flex-row items-center">
+        <Pressable
+          onPress={() => router.back()}
+          className="rounded-xl bg-white/10 px-4 py-2 border border-white/10"
+        >
+          <Text className="text-white">Geri</Text>
+        </Pressable>
+
+        <View className="flex-1 items-center px-3">
+          <Text className="text-xl font-bold text-white" numberOfLines={1}>
+            {topicName}
+          </Text>
+          <Text className="text-white/50 text-xs mt-1" numberOfLines={1}>
+            {lessonName} • {createdAtText}
+          </Text>
+        </View>
 
         <Pressable
           onPress={onDeletePress}
           disabled={deleting}
-          className={`px-3 py-2 rounded-xl border ${
-            deleting
-              ? "bg-red-500/30 border-red-500/30"
-              : "bg-red-500/20 border-red-500/30"
+          className={`rounded-xl border px-4 py-2 ${
+            deleting ? "bg-red-500/30 border-red-500/30" : "bg-red-500/20 border-red-500/30"
           }`}
         >
           <Text className="text-red-200 font-semibold">
@@ -111,14 +351,33 @@ export default function QuestionDetailScreen() {
         </Pressable>
       </View>
 
-      <Image source={{ uri: item.imageUrl }} className="w-full h-80 rounded-2xl mb-4" resizeMode="cover" />
+      {/* ✅ Görsel (dokununca full-screen viewer) */}
+      <View className="px-6">
+        <Pressable onPress={() => setViewerOpen(true)} className="rounded-2xl overflow-hidden border border-white/10">
+          <Image
+            source={{ uri: item.imageUrl }}
+            className="w-full h-96 bg-white/5"
+            resizeMode="cover"
+          />
+        </Pressable>
 
-      <View className="rounded-2xl bg-white/10 border border-white/10 p-4">
-        <Text className="text-white text-lg font-semibold">Soru</Text>
-        <Text className="text-white/70 mt-1">
-          Bu soru bu konu altında kayıtlı.
+        <Text className="text-white/40 text-xs mt-2">
+          Tam ekran için görsele dokun • Çift dokun: yakınlaştır/sıfırla
         </Text>
+
+        <View className="mt-4 rounded-2xl bg-white/10 border border-white/10 p-4">
+          <Text className="text-white text-base font-semibold">Bilgi</Text>
+          <Text className="text-white/70 mt-2">
+            Eklenme: {createdAtText}
+          </Text>
+        </View>
       </View>
+
+      <FullscreenZoomImage
+        uri={item.imageUrl}
+        visible={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+      />
     </View>
   );
 }

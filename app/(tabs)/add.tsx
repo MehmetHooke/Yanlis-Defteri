@@ -64,7 +64,7 @@ export default function AddScreen() {
       setTopic("");
 
       // Kaydedilen topic'in soru listesine git
-      router.replace(`/(tabs)/lesson/${result.lessonId}/topic/${result.topicId}`);
+      router.replace(`/(tabs)`);
     } catch (e: any) {
       Alert.alert("Hata", e?.message ?? "Kaydedilemedi");
     } finally {
