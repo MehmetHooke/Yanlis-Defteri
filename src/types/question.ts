@@ -1,8 +1,10 @@
 export type Question = {
   id: string;
   userId: string;
+  lessonId: string;
+  topicId: string;
   imageUrl: string;
-  lesson: string;
-  topic: string;
-  createdAt?: any; // Firestore Timestamp (MVP için)
+  imagePath?: string; // storage silmek için garanti
+  createdAt?: any;
+  updatedAt?: any;
 };

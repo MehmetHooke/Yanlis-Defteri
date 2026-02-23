@@ -1,5 +1,5 @@
 import type { Question } from "@/src/types/question";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 
 export default function QuestionCard({
   item,
@@ -13,8 +13,8 @@ export default function QuestionCard({
       <View className="flex-row gap-3 rounded-2xl bg-white/10 p-4 border border-white/10">
         <Image source={{ uri: item.imageUrl }} className="h-16 w-16 rounded-xl" resizeMode="cover" />
         <View className="flex-1">
-          <Text className="text-white text-base font-semibold">{item.lesson}</Text>
-          <Text className="text-white/70 text-sm mt-1">{item.topic}</Text>
+          {/* <Text className="text-white text-base font-semibold">{item.lesson}</Text> */}
+          {/* <Text className="text-white/70 text-sm mt-1">{item.topic}</Text> */}
         </View>
       </View>
     </Pressable>

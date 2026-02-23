@@ -1,15 +1,20 @@
-
+// app/(tabs)/lesson/[lessonId]/topic/[topicId]/question/[questionId].tsx
 import type { Question } from "@/src/types/question";
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, Pressable, Text, View } from "react-native";
 
-import { db } from "@/src/lib/firebase";
-import { deleteQuestionWithImage } from "@/src/services/question.service"; // <-- yolunu kendi yapına göre düzelt
+import { auth, db } from "@/src/lib/firebase";
+import { deleteQuestionCascade } from "@/src/services/question.service";
 
-export default function DetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export default function QuestionDetailScreen() {
+  const { lessonId, topicId, questionId } = useLocalSearchParams<{
+    lessonId: string;
+    topicId: string;
+    questionId: string;
+  }>();
+
   const [item, setItem] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -17,17 +22,23 @@ export default function DetailScreen() {
   useEffect(() => {
     (async () => {
       try {
-        if (!id) return;
-        const snap = await getDoc(doc(db, "questions", id));
+        const user = auth.currentUser;
+        if (!user || !lessonId || !topicId || !questionId) return;
+
+        const snap = await getDoc(
+          doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId, "questions", questionId)
+        );
+
         if (snap.exists()) setItem(snap.data() as Question);
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [lessonId, topicId, questionId]);
 
   const onDeletePress = () => {
-    if (!id || !item) return;
+    const user = auth.currentUser;
+    if (!user || !lessonId || !topicId || !questionId) return;
 
     Alert.alert(
       "Soruyu sil?",
@@ -40,11 +51,15 @@ export default function DetailScreen() {
           onPress: async () => {
             try {
               setDeleting(true);
-              await deleteQuestionWithImage({
-                questionId: id,
-                imageUrl: item.imageUrl, // varsa silinsin
+
+              await deleteQuestionCascade({
+                userId: user.uid,
+                lessonId,
+                topicId,
+                questionId,
               });
-              router.back(); // listeye dön
+
+              router.back();
             } catch (e) {
               console.log("Silme hatası:", e);
               Alert.alert("Hata", "Silinirken bir problem oluştu.");
@@ -69,11 +84,7 @@ export default function DetailScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-black p-6">
         <Text className="text-white/70">Soru bulunamadı.</Text>
-
-        <Pressable
-          onPress={() => router.back()}
-          className="mt-4 rounded-xl bg-white px-4 py-3"
-        >
+        <Pressable onPress={() => router.back()} className="mt-4 rounded-xl bg-white px-4 py-3">
           <Text className="font-semibold">Geri</Text>
         </Pressable>
       </View>
@@ -100,15 +111,13 @@ export default function DetailScreen() {
         </Pressable>
       </View>
 
-      <Image
-        source={{ uri: item.imageUrl }}
-        className="w-full h-80 rounded-2xl mb-4"
-        resizeMode="cover"
-      />
+      <Image source={{ uri: item.imageUrl }} className="w-full h-80 rounded-2xl mb-4" resizeMode="cover" />
 
       <View className="rounded-2xl bg-white/10 border border-white/10 p-4">
-        <Text className="text-white text-lg font-semibold">{item.lesson}</Text>
-        <Text className="text-white/70 mt-1">{item.topic}</Text>
+        <Text className="text-white text-lg font-semibold">Soru</Text>
+        <Text className="text-white/70 mt-1">
+          Bu soru bu konu altında kayıtlı.
+        </Text>
       </View>
     </View>
   );
