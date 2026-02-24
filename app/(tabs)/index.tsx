@@ -72,7 +72,7 @@ export default function HomeScreen() {
   return (
     <View className="flex-1 bg-black">
       <View className="pt-14 px-6 pb-4 flex-row items-center justify-between">
-        <Text className="text-2xl font-bold text-white">Dersler</Text>
+        <Text className="text-2xl font-bold text-white">Yanlış Defterim</Text>
 
         <Pressable
           onPress={async () => {
