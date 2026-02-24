@@ -5,27 +5,27 @@ import type { Question } from "@/src/types/question";
 import type { Topic } from "@/src/types/topic";
 
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    increment,
-    limit,
-    orderBy,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where,
-    writeBatch,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 
 import {
-    deleteObject,
-    getDownloadURL,
-    ref,
-    uploadBytes,
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
 } from "firebase/storage";
 
 /** ---------- helpers ---------- **/
@@ -86,6 +86,21 @@ function questionDoc(
     "questions",
     questionId,
   );
+}
+
+async function uploadImageUri(userId: string, uri: string, folder: string) {
+  const res = await fetch(uri);
+  const blob = await res.blob();
+
+  const imagePath = `${folder}/${userId}/${Date.now()}-${Math.random()
+    .toString(16)
+    .slice(2)}.jpg`;
+
+  const fileRef = ref(storage, imagePath);
+  await uploadBytes(fileRef, blob);
+  const url = await getDownloadURL(fileRef);
+
+  return { url, path: imagePath };
 }
 
 /** ---------- ensure lesson/topic exists ---------- **/
@@ -212,6 +227,103 @@ export async function addQuestionV2(params: {
   return { lessonId, topicId, questionId: qRef.id };
 }
 
+export async function addQuestionV3(params: {
+  userId: string;
+  questionImageUri: string; // ✅ tek soru foto
+  lesson: string;
+  topic: string;
+  answers: Array<{
+    id: string;
+    kind: "choice" | "photo";
+    choice?: "A" | "B" | "C" | "D" | "E";
+    explanation?: string;
+    imageUri?: string; // kind=photo ise zorunlu
+  }>;
+}) {
+  const { userId, questionImageUri, lesson, topic } = params;
+  const answers = params.answers ?? [];
+
+  if (!questionImageUri) throw new Error("Soru fotoğrafı zorunlu.");
+  if (!lesson.trim()) throw new Error("Ders boş olamaz.");
+  if (!topic.trim()) throw new Error("Konu boş olamaz.");
+
+  // ✅ en az 1, max 3 cevap
+  if (answers.length < 1) throw new Error("En az 1 doğru cevap eklemelisin.");
+  if (answers.length > 3)
+    throw new Error("En fazla 3 doğru cevap ekleyebilirsin.");
+
+  for (const a of answers) {
+    if (a.kind === "choice") {
+      if (!a.choice) throw new Error("Şık seçilmemiş cevap var.");
+    } else {
+      if (!a.imageUri) throw new Error("Fotoğraf seçilmemiş cevap var.");
+    }
+  }
+
+  const { lessonId } = await ensureLesson(userId, lesson);
+  const { topicId } = await ensureTopic(userId, lessonId, topic);
+
+  // 1) soru foto upload
+  const questionImage = await uploadImageUri(
+    userId,
+    questionImageUri,
+    "questions",
+  );
+
+  // 2) cevap foto upload (sadece kind=photo)
+  const uploadedAnswers = [];
+  for (const a of answers) {
+    if (a.kind === "photo" && a.imageUri) {
+      const img = await uploadImageUri(userId, a.imageUri, "answers");
+      uploadedAnswers.push({
+        id: a.id,
+        kind: "photo" as const,
+        image: img,
+        explanation: a.explanation?.trim() || undefined,
+      });
+    } else {
+      uploadedAnswers.push({
+        id: a.id,
+        kind: "choice" as const,
+        choice: a.choice,
+        explanation: a.explanation?.trim() || undefined,
+      });
+    }
+  }
+
+  // 3) question doc
+  const qRef = await addDoc(questionsCol(userId, lessonId, topicId), {
+    userId,
+    lessonId,
+    topicId,
+
+    // ✅ V3 alanları
+    questionImage,
+    answers: uploadedAnswers,
+
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  await updateDoc(qRef, { id: qRef.id });
+
+  // 4) counter + activity
+  const batch = writeBatch(db);
+  batch.update(topicDoc(userId, lessonId, topicId), {
+    questionCount: increment(1),
+    updatedAt: serverTimestamp(),
+    lastActivityAt: serverTimestamp(),
+  });
+  batch.update(lessonDoc(userId, lessonId), {
+    questionCount: increment(1),
+    updatedAt: serverTimestamp(),
+    lastActivityAt: serverTimestamp(),
+  });
+  await batch.commit();
+
+  return { lessonId, topicId, questionId: qRef.id };
+}
+
 /** ---------- list lessons/topics/questions ---------- **/
 export async function getUserLessons(userId: string): Promise<Lesson[]> {
   const q = query(lessonsCol(userId), orderBy("lastActivityAt", "desc"));
@@ -260,9 +372,29 @@ export async function deleteQuestionCascade(params: {
   if (!qSnap.exists()) return;
 
   const qData = qSnap.data() as Question;
-  const imgPath = qData.imagePath;
 
-  // delete doc + update counters
+  // ✅ V3 + V2 uyumlu: silinecek tüm path’leri topla
+  const pathsToDelete: string[] = [];
+
+  // V3 soru foto
+  if ((qData as any)?.questionImage?.path) {
+    pathsToDelete.push((qData as any).questionImage.path);
+  }
+
+  // V2 soru foto
+  if ((qData as any)?.imagePath) {
+    pathsToDelete.push((qData as any).imagePath);
+  }
+
+  // V3 cevap fotoğrafları
+  const answers = (qData as any)?.answers ?? [];
+  for (const a of answers) {
+    if (a?.kind === "photo" && a?.image?.path) {
+      pathsToDelete.push(a.image.path);
+    }
+  }
+
+  // delete doc + update counters (senin mevcut halin aynı)
   const batch = writeBatch(db);
   batch.delete(questionDoc(userId, lessonId, topicId, questionId));
   batch.update(topicDoc(userId, lessonId, topicId), {
@@ -275,12 +407,12 @@ export async function deleteQuestionCascade(params: {
   });
   await batch.commit();
 
-  // storage delete (best effort)
-  if (imgPath) {
+  // ✅ storage delete (best effort)
+  for (const p of pathsToDelete) {
     try {
-      await deleteObject(ref(storage, imgPath));
+      await deleteObject(ref(storage, p));
     } catch (e) {
-      console.log("Storage delete failed:", e);
+      console.log("Storage delete failed:", p, e);
     }
   }
 

@@ -9,12 +9,18 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, Text, View } from "react-native";
 
 function QuestionRow({ item, onPress }: { item: Question; onPress: () => void }) {
+  const img = item.questionImage?.url ?? item.imageUrl;
+
   return (
     <Pressable
       onPress={onPress}
       className="mb-3 rounded-2xl bg-white/10 border border-white/10 overflow-hidden"
     >
-      <Image source={{ uri: item.imageUrl }} className="w-full h-44" resizeMode="cover" />
+      <Image
+        source={{ uri: img }}
+        className="w-full h-44 bg-white/5"
+        resizeMode="cover"
+      />
       <View className="p-4">
         <Text className="text-white/70 text-sm">Soru</Text>
         <Text className="text-white text-sm mt-1">Detay için dokun</Text>

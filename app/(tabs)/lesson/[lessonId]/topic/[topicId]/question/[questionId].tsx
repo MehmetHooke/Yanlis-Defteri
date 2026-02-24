@@ -1,16 +1,16 @@
-import type { Question } from "@/src/types/question";
 
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    Pressable,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
 } from "react-native";
 
 import { auth, db } from "@/src/lib/firebase";
@@ -19,14 +19,14 @@ import { deleteQuestionCascade } from "@/src/services/question.service";
 // ✅ Zoom/Pan için
 import { Dimensions } from "react-native";
 import {
-    Gesture,
-    GestureDetector,
-    GestureHandlerRootView,
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 /** Firestore Timestamp -> Date format */
@@ -61,7 +61,7 @@ function FullscreenZoomImage({
   visible: boolean;
   onClose: () => void;
 }) {
-  // Modal içi image boyutu (CV projesine benzer)
+  // Modal içi image boyutu
   const IMG_W = width * 0.95;
   const IMG_H = height * 0.75;
 
@@ -73,13 +73,11 @@ function FullscreenZoomImage({
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
 
-  // ✅ worklet clamp (iOS crash riskini azaltır)
   const clamp = (v: number, min: number, max: number) => {
     "worklet";
     return Math.min(Math.max(v, min), max);
   };
 
-  // ✅ Ölçeğe göre pan sınırları (image ekran dışına kaçmasın)
   const boundTranslations = () => {
     "worklet";
     const maxX = (IMG_W * (scale.value - 1)) / 2;
@@ -98,7 +96,6 @@ function FullscreenZoomImage({
     savedTranslateY.value = 0;
   };
 
-  // ✋ Pan
   const pan = Gesture.Pan()
     .onBegin(() => {
       savedTranslateX.value = translateX.value;
@@ -110,7 +107,6 @@ function FullscreenZoomImage({
       boundTranslations();
     });
 
-  // 🤏 Pinch (focal odaklı)
   const pinch = Gesture.Pinch()
     .onBegin(() => {
       savedScale.value = scale.value;
@@ -134,7 +130,6 @@ function FullscreenZoomImage({
       boundTranslations();
     })
     .onEnd(() => {
-      // küçük geri dönüş
       if (scale.value <= 1.01) {
         scale.value = withTiming(1);
         translateX.value = withTiming(0);
@@ -147,7 +142,6 @@ function FullscreenZoomImage({
       }
     });
 
-  // 👆 Double tap reset
   const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd(() => {
     resetTransform();
   });
@@ -169,14 +163,11 @@ function FullscreenZoomImage({
       animationType="fade"
       onRequestClose={onClose}
       onShow={() => {
-        // ✅ Modal açılınca reset (CV projesi gibi)
         resetTransform();
       }}
     >
-      {/* ✅ Modal içinde mutlaka GH Root */}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View className="flex-1 bg-black/95 justify-center items-center px-5">
-          {/* Kapat */}
           <View className="w-full items-end mb-4">
             <Pressable
               onPress={onClose}
@@ -186,7 +177,6 @@ function FullscreenZoomImage({
             </Pressable>
           </View>
 
-          {/* ✅ Pinch + Pan + DoubleTap */}
           <GestureDetector gesture={composedGesture}>
             <Animated.Image
               source={{ uri }}
@@ -212,6 +202,33 @@ function FullscreenZoomImage({
   );
 }
 
+/** ---- Yeni cevap modeli (UI için) ---- */
+type Answer =
+  | {
+      id: string;
+      kind: "choice";
+      choice?: "A" | "B" | "C" | "D" | "E";
+      explanation?: string;
+    }
+  | {
+      id: string;
+      kind: "photo";
+      image?: { url: string; path: string };
+      explanation?: string;
+    };
+
+/** ---- Yeni question doc şekli ---- */
+type QuestionV3 = {
+  id?: string;
+  userId: string;
+  lessonId: string;
+  topicId: string;
+  questionImage: { url: string; path: string };
+  answers: Answer[];
+  createdAt?: any;
+  updatedAt?: any;
+};
+
 export default function QuestionDetailScreen() {
   const { lessonId, topicId, questionId } = useLocalSearchParams<{
     lessonId: string;
@@ -219,14 +236,19 @@ export default function QuestionDetailScreen() {
     questionId: string;
   }>();
 
-  const [item, setItem] = useState<Question | null>(null);
+  const [item, setItem] = useState<QuestionV3 | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   const [lessonName, setLessonName] = useState("Ders");
   const [topicName, setTopicName] = useState("Konu");
 
+  // ✅ Zoom viewer state (soru + cevap foto için ortak)
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
+
+  // ✅ Cevap toggle (default kapalı)
+  const [showAnswers, setShowAnswers] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -248,12 +270,14 @@ export default function QuestionDetailScreen() {
             questionId
           )
         );
-        if (qSnap.exists()) setItem(qSnap.data() as Question);
+        if (qSnap.exists()) setItem(qSnap.data() as QuestionV3);
 
         // header names
         const [lSnap, tSnap] = await Promise.all([
           getDoc(doc(db, "users", user.uid, "lessons", lessonId)),
-          getDoc(doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)),
+          getDoc(
+            doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)
+          ),
         ]);
         if (lSnap.exists()) setLessonName((lSnap.data() as any)?.name ?? "Ders");
         if (tSnap.exists()) setTopicName((tSnap.data() as any)?.name ?? "Konu");
@@ -269,7 +293,7 @@ export default function QuestionDetailScreen() {
 
     Alert.alert(
       "Soruyu sil?",
-      "Bu işlem geri alınamaz. Soru ve görseli silinecek.",
+      "Bu işlem geri alınamaz. Soru ve ilgili görseller silinecek.",
       [
         { text: "Vazgeç", style: "cancel" },
         {
@@ -297,6 +321,18 @@ export default function QuestionDetailScreen() {
     );
   };
 
+  const createdAtText = useMemo(
+    () => formatCreatedAt(item?.createdAt),
+    [item?.createdAt]
+  );
+
+  const answers = useMemo(() => item?.answers ?? [], [item?.answers]);
+
+  const openViewer = (uri: string) => {
+    setViewerUri(uri);
+    setViewerOpen(true);
+  };
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -309,14 +345,17 @@ export default function QuestionDetailScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-black p-6">
         <Text className="text-white/70">Soru bulunamadı.</Text>
-        <Pressable onPress={() => router.back()} className="mt-4 rounded-xl bg-white px-4 py-3">
+        <Pressable
+          onPress={() => router.back()}
+          className="mt-4 rounded-xl bg-white px-4 py-3"
+        >
           <Text className="font-semibold">Geri</Text>
         </Pressable>
       </View>
     );
   }
 
-  const createdAtText = formatCreatedAt(item.createdAt);
+  const questionUri = item.questionImage?.url;
 
   return (
     <View className="flex-1 bg-black">
@@ -342,7 +381,9 @@ export default function QuestionDetailScreen() {
           onPress={onDeletePress}
           disabled={deleting}
           className={`rounded-xl border px-4 py-2 ${
-            deleting ? "bg-red-500/30 border-red-500/30" : "bg-red-500/20 border-red-500/30"
+            deleting
+              ? "bg-red-500/30 border-red-500/30"
+              : "bg-red-500/20 border-red-500/30"
           }`}
         >
           <Text className="text-red-200 font-semibold">
@@ -351,30 +392,114 @@ export default function QuestionDetailScreen() {
         </Pressable>
       </View>
 
-      {/* ✅ Görsel (dokununca full-screen viewer) */}
-      <View className="px-6">
-        <Pressable onPress={() => setViewerOpen(true)} className="rounded-2xl overflow-hidden border border-white/10">
-          <Image
-            source={{ uri: item.imageUrl }}
-            className="w-full h-96 bg-white/5"
-            resizeMode="cover"
-          />
-        </Pressable>
+      {/* İçerik scroll */}
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 28 }}>
+        {/* ✅ Soru görseli (dokununca full-screen viewer) */}
+        <View className="px-6">
+          <Pressable
+            onPress={() => questionUri && openViewer(questionUri)}
+            className="rounded-2xl overflow-hidden border border-white/10"
+          >
+            <Image
+              source={{ uri: questionUri }}
+              className="w-full h-96 bg-white/5"
+              resizeMode="cover"
+            />
+          </Pressable>
 
-        <Text className="text-white/40 text-xs mt-2">
-          Tam ekran için görsele dokun • Çift dokun: yakınlaştır/sıfırla
-        </Text>
-
-        <View className="mt-4 rounded-2xl bg-white/10 border border-white/10 p-4">
-          <Text className="text-white text-base font-semibold">Bilgi</Text>
-          <Text className="text-white/70 mt-2">
-            Eklenme: {createdAtText}
+          <Text className="text-white/40 text-xs mt-2">
+            Tam ekran için görsele dokun • Pinch/Drag/DoubleTap destekli
           </Text>
-        </View>
-      </View>
 
+          {/* ✅ Cevap toggle butonu */}
+          <Pressable
+            onPress={() => setShowAnswers((s) => !s)}
+            className="mt-4 rounded-xl bg-white px-4 py-3 items-center"
+          >
+            <Text className="font-semibold">
+              {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
+            </Text>
+          </Pressable>
+
+          {/* ✅ Cevaplar */}
+          {showAnswers && (
+            <View className="mt-4 gap-3">
+              {answers.map((a, idx) => (
+                <View
+                  key={a.id ?? String(idx)}
+                  className="rounded-2xl bg-white/10 border border-white/10 p-4"
+                >
+                  <Text className="text-white font-semibold">
+                    Çözüm {idx + 1}
+                  </Text>
+
+                  {/* Choice cevap */}
+                  {a.kind === "choice" ? (
+                    <View className="mt-3 self-start px-3 py-2 rounded-lg bg-white">
+                      <Text className="text-black font-bold">
+                        Doğru Şık: {a.choice ?? "-"}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Photo cevap */}
+                  {a.kind === "photo" ? (
+                    <View className="mt-3">
+                      {a.image?.url ? (
+                        <Pressable
+                          onPress={() => openViewer(a.image!.url)}
+                          className="rounded-xl overflow-hidden border border-white/10"
+                        >
+                          <Image
+                            source={{ uri: a.image.url }}
+                            className="w-full h-56 bg-white/5"
+                            resizeMode="cover"
+                          />
+                        </Pressable>
+                      ) : (
+                        <Text className="text-white/60 mt-2">
+                          Fotoğraf yok
+                        </Text>
+                      )}
+                      <Text className="text-white/40 text-xs mt-2">
+                        Cevap fotoğrafını da tam ekran açabilirsin.
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* explanation opsiyonel */}
+                  {a.explanation?.trim() ? (
+                    <Text className="text-white/80 mt-3 leading-5">
+                      {a.explanation}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+
+              {answers.length === 0 && (
+                <View className="rounded-2xl bg-white/10 border border-white/10 p-4">
+                  <Text className="text-white/70">
+                    Cevap bulunamadı. (Normalde en az 1 olmalı.)
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ✅ Bilgi kutusu */}
+          <View className="mt-4 rounded-2xl bg-white/10 border border-white/10 p-4">
+            <Text className="text-white text-base font-semibold">Bilgi</Text>
+            <Text className="text-white/70 mt-2">Eklenme: {createdAtText}</Text>
+            <Text className="text-white/50 mt-1 text-xs">
+              Cevaplar varsayılan gizli. Butonla aç/kapat.
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* ✅ Fullscreen viewer (soru + cevap foto ortak) */}
       <FullscreenZoomImage
-        uri={item.imageUrl}
+        uri={viewerUri ?? questionUri}
         visible={viewerOpen}
         onClose={() => setViewerOpen(false)}
       />

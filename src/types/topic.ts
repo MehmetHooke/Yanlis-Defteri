@@ -4,8 +4,9 @@ export type Topic = {
   lessonId: string;
   name: string;
   key: string;
+
+  questionCount?: number;
   createdAt?: any;
   updatedAt?: any;
   lastActivityAt?: any;
-  questionCount: number;
 };

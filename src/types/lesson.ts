@@ -3,9 +3,10 @@ export type Lesson = {
   userId: string;
   name: string;
   key: string;
+
+  topicCount?: number;
+  questionCount?: number;
   createdAt?: any;
   updatedAt?: any;
   lastActivityAt?: any;
-  topicCount: number;
-  questionCount: number;
 };
