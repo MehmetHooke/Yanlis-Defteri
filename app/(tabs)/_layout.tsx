@@ -54,15 +54,8 @@ export default function TabsLayout() {
         }}
       />
 
-
-
-      {/* Yeni hiyerarşi route'larını TAB’da gösterme */}
-      <Tabs.Screen name="lesson/[lessonId]" options={{ href: null }} />
-      <Tabs.Screen name="lesson/[lessonId]/topic/[topicId]" options={{ href: null }} />
-      <Tabs.Screen
-        name="lesson/[lessonId]/topic/[topicId]/question/[questionId]"
-        options={{ href: null }}
-      />
+      {/* test için yeni şekil */}
+      <Tabs.Screen name="lesson" options={{ href: null }} />
     </Tabs>
   );
 }
