@@ -69,6 +69,23 @@ export default function AddScreen() {
     kind: "photo",
     imageUri: null,
   });
+  const resetForm = () => {
+  // Soru (default: foto)
+  setQuestion({ kind: "photo", imageUri: null });
+
+  // Ders / Konu
+  setLesson("");
+  setTopic("");
+
+  // Cevaplar (1 tane başlangıç kartı)
+  setAnswers([{ id: Date.now().toString(), kind: "choice" }]);
+
+  // Tab geri al
+  setActiveTab(0);
+  pagerRef.current?.setPage(0);
+
+  // (opsiyonel) en üste kaydırmak istersen scrollRef ile yapılır
+};
 
   const [lesson, setLesson] = useState("");
   const [topic, setTopic] = useState("");
@@ -365,8 +382,9 @@ export default function AddScreen() {
           };
         }),
       });
-
-      router.replace("/(tabs)");
+      alert("Başarılı","Sorunuz Başarıyla Kaydedildi",{variant:"success"})
+      resetForm();
+      router.replace("/(tabs)/questions");
     } catch (e: any) {
       alert("Hata", e?.message ?? "Kaydedilemedi");
     } finally {
