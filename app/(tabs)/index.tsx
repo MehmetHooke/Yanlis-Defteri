@@ -1,4 +1,5 @@
 import EmptyState from "@/src/components/EmptyState";
+import { useTheme } from "@/src/context/ThemeContext";
 import { auth } from "@/src/lib/firebase";
 import { logout } from "@/src/services/auth.service";
 import { getUserLessons } from "@/src/services/question.service";
@@ -41,7 +42,7 @@ function LessonCard({
 export default function HomeScreen() {
   const [items, setItems] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const { theme, themeLoading } = useTheme();
   const fetchData = async () => {
     const user = auth.currentUser;
 
