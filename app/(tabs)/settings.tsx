@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Animated,
     Easing,
     Image,
@@ -10,7 +9,7 @@ import {
     ScrollView,
     Text,
     TextInput,
-    View,
+    View
 } from "react-native";
 
 import { auth } from "@/src/lib/firebase";
@@ -24,6 +23,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { logout } from "@/src/services/auth.service";
 import { router } from "expo-router";
 
+import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { ChevronDown, ChevronUp, Laptop, LogOut, Moon, Sun } from "lucide-react-native";
 
 function Section({
@@ -107,7 +107,7 @@ function RadioRow({
 
 export default function SettingsScreen() {
     const { theme, preference, setPreference, themeLoading, effectiveTheme } = useTheme();
-
+    const { alert, confirm } = useAppAlert();
     const user = auth.currentUser;
     const displayName = user?.displayName || "Kullanıcı";
     const email = user?.email || "";
@@ -199,23 +199,23 @@ export default function SettingsScreen() {
     });
 
     const onChangePassword = async () => {
-        if (!user) return Alert.alert("Hata", "Giriş yapan kullanıcı bulunamadı.");
-        if (!email) return Alert.alert("Hata", "Email bilgisi bulunamadı.");
+        if (!user) return alert("Hata", "Giriş yapan kullanıcı bulunamadı.");
+        if (!email) return alert("Hata", "Email bilgisi bulunamadı.");
 
         // Google/Apple login ise burada mantık farklı (MVP: uyarı)
         // provider kontrolü (basit)
         const providerIds = user.providerData.map((p) => p.providerId);
         if (!providerIds.includes("password")) {
-            Alert.alert(
+            alert(
                 "Bilgi",
                 "Bu hesap email/şifre ile giriş yapmıyor. Şifre değiştirmek için email/şifre hesabı kullanmalısın."
             );
             return;
         }
 
-        if (!oldPass || !newPass || !newPass2) return Alert.alert("Eksik", "Lütfen tüm alanları doldurun.");
-        if (newPass !== newPass2) return Alert.alert("Hata", "Yeni şifreler aynı değil.");
-        if (newPass.length < 6) return Alert.alert("Hata", "Yeni şifre en az 6 karakter olmalı.");
+        if (!oldPass || !newPass || !newPass2) return alert("Eksik", "Lütfen tüm alanları doldurun.");
+        if (newPass !== newPass2) return alert("Hata", "Yeni şifreler aynı değil.");
+        if (newPass.length < 6) return alert("Hata", "Yeni şifre en az 6 karakter olmalı.");
 
         setSaving(true);
         try {
@@ -227,32 +227,32 @@ export default function SettingsScreen() {
             setNewPass("");
             setNewPass2("");
 
-            Alert.alert("Başarılı", "Şifreniz güncellendi.");
+            alert("Başarılı", "Şifreniz güncellendi.");
             // istersen otomatik kapatalım:
             // togglePassword();
         } catch (e: any) {
             const code = e?.code;
-            if (code === "auth/wrong-password") Alert.alert("Hata", "Eski şifre yanlış.");
-            else if (code === "auth/too-many-requests") Alert.alert("Hata", "Çok fazla deneme. Biraz sonra tekrar deneyin.");
-            else if (code === "auth/requires-recent-login") Alert.alert("Hata", "Güvenlik için yeniden giriş yapmanız gerekiyor.");
-            else Alert.alert("Hata", "Şifre değiştirilemedi.");
+            if (code === "auth/wrong-password") alert("Hata", "Eski şifre yanlış.");
+            else if (code === "auth/too-many-requests") alert("Hata", "Çok fazla deneme. Biraz sonra tekrar deneyin.");
+            else if (code === "auth/requires-recent-login") alert("Hata", "Güvenlik için yeniden giriş yapmanız gerekiyor.");
+            else alert("Hata", "Şifre değiştirilemedi.");
         } finally {
             setSaving(false);
         }
     };
 
     const onLogout = async () => {
-        Alert.alert("Çıkış", "Çıkış yapmak istiyor musun?", [
-            { text: "Vazgeç", style: "cancel" },
-            {
-                text: "Çıkış Yap",
-                style: "destructive",
-                onPress: async () => {
-                    await logout();
-                    router.replace("/(auth)/login");
-                },
+
+        confirm({
+            title: "Çıkış yap",
+            message: "Çıkış yapmak istiyor musun ?",
+            destructive: true,
+            confirmText: "Çıkış yap",
+            onConfirm: async () => {
+                await logout();
+                router.replace("/(auth)/login");
             },
-        ]);
+        });
     };
 
     if (themeLoading) {
