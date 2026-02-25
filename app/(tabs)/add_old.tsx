@@ -7,29 +7,29 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ImageBackground,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ImageBackground,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import PagerView from "react-native-pager-view";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
-  Camera,
-  CheckCircle2,
-  Image as ImageIcon,
-  Plus,
-  Trash2,
-  Type as TypeIcon,
+    Camera,
+    CheckCircle2,
+    Image as ImageIcon,
+    Plus,
+    Trash2,
+    Type as TypeIcon,
 } from "lucide-react-native";
 
 type DraftAnswer =
@@ -43,12 +43,6 @@ type DraftAnswer =
     id: string;
     kind: "photo";
     imageUri?: string;
-    explanation?: string;
-  }
-  | {
-    id: string;
-    kind: "text";
-    text?: string;
     explanation?: string;
   };
 
@@ -79,53 +73,6 @@ export default function AddScreen() {
   ]);
 
   const [loading, setLoading] = useState(false);
-  const { alert, confirm } = useAppAlert();
-
-  const providedAnswers = useMemo(() => {
-    return answers
-      .map((a) => {
-        if (a.kind === "choice") {
-          if (!a.choice) return null;
-          return a;
-        }
-        if (a.kind === "photo") {
-          if (!a.imageUri) return null;
-          return a;
-        }
-        // text
-        if (!a.text?.trim()) return null;
-        return a;
-      })
-      .filter(Boolean) as DraftAnswer[];
-  }, [answers]);
-
-  const draftSaveError = useMemo(() => {
-    // soru
-    if (question.kind === "photo") {
-      if (!question.imageUri) return "Soru fotoğrafı eklenmemiş. Galeri/Kamera ile ekle veya metin seç.";
-    } else {
-      if (!question.text?.trim()) return "Soru metni boş. Metin alanına soruyu yaz.";
-    }
-
-    // ders / konu
-    if (!lesson.trim()) return "Ders boş. Ders adını gir.";
-    if (!topic.trim()) return "Konu boş. Konu adını gir.";
-
-    // cevap: en az 1 dolu çözüm
-    if (providedAnswers.length < 1) return "En az 1 çözüm eklemelisin (Şıklı/Galeri/Metin).";
-
-    // text limit kontrol (sadece doluysa)
-    for (let i = 0; i < answers.length; i++) {
-      const a = answers[i];
-      if (a.kind === "text" && a.text && a.text.length > 200) {
-        return `Çözüm ${i + 1}: Metin 200 karakteri geçemez.`;
-      }
-    }
-
-    return null;
-  }, [question, lesson, topic, answers, providedAnswers]);
-
-  const saveDisabled = loading || !!draftSaveError;
 
   const styles = useMemo(() => {
     return {
@@ -213,7 +160,7 @@ export default function AddScreen() {
   const takeQuestionPhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      alert("İzin gerekli", "Kamera izni olmadan fotoğraf çekemezsin.");
+      Alert.alert("İzin gerekli", "Kamera izni olmadan fotoğraf çekemezsin.");
       return;
     }
     const res = await ImagePicker.launchCameraAsync({
@@ -245,7 +192,7 @@ export default function AddScreen() {
   const takeAnswerPhoto = async (id: string) => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      alert("İzin gerekli", "Kamera izni olmadan fotoğraf çekemezsin.");
+      Alert.alert("İzin gerekli", "Kamera izni olmadan fotoğraf çekemezsin.");
       return;
     }
 
@@ -267,7 +214,7 @@ export default function AddScreen() {
 
   const addAnswer = () => {
     if (answers.length >= 3) {
-      alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
+      Alert.alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
       return;
     }
     setAnswers((prev) => [...prev, { id: Date.now().toString(), kind: "choice" }]);
@@ -275,7 +222,7 @@ export default function AddScreen() {
 
   const removeAnswer = (id: string) => {
     if (answers.length <= 1) {
-      alert("Zorunlu", "En az 1 çözüm eklemelisin.");
+      Alert.alert("Zorunlu", "En az 1 çözüm eklemelisin.");
       return;
     }
     setAnswers((prev) => prev.filter((a) => a.id !== id));
@@ -285,7 +232,7 @@ export default function AddScreen() {
     setAnswers((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
   };
 
-  const switchAnswerKind = (id: string, kind: "choice" | "photo" | "text") => {
+  const switchAnswerKind = (id: string, kind: "choice" | "photo") => {
     setAnswers((prev) =>
       prev.map((a) => {
         if (a.id !== id) return a;
@@ -293,11 +240,7 @@ export default function AddScreen() {
         if (kind === "choice") {
           return { id, kind: "choice", choice: undefined, explanation: a.explanation };
         }
-        if (kind === "photo") {
-          return { id, kind: "photo", imageUri: undefined, explanation: a.explanation };
-        }
-        // text
-        return { id, kind: "text", text: "", explanation: a.explanation };
+        return { id, kind: "photo", imageUri: undefined, explanation: a.explanation };
       })
     );
   };
@@ -307,24 +250,28 @@ export default function AddScreen() {
   const onSave = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    if (draftSaveError) return;
 
     // soru
     if (question.kind === "photo") {
       if (!question.imageUri) {
-        return alert("Eksik", "Soru için fotoğraf seç/çek ya da Tt ile metin gir.");
+        return Alert.alert("Eksik", "Soru için fotoğraf seç/çek ya da Tt ile metin gir.");
       }
     } else {
-      if (!question.text.trim()) return alert("Eksik", "Soru metni boş olamaz.");
+      if (!question.text.trim()) return Alert.alert("Eksik", "Soru metni boş olamaz.");
     }
 
     // ders/konu
-    if (!lesson.trim()) return alert("Eksik", "Ders boş olamaz.");
-    if (!topic.trim()) return alert("Eksik", "Konu boş olamaz.");
+    if (!lesson.trim()) return Alert.alert("Eksik", "Ders boş olamaz.");
+    if (!topic.trim()) return Alert.alert("Eksik", "Konu boş olamaz.");
 
     // cevap
-    if (answers.length < 1) return alert("Eksik", "En az 1 çözüm eklemelisin.");
-    if (answers.length > 3) return alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
+    if (answers.length < 1) return Alert.alert("Eksik", "En az 1 çözüm eklemelisin.");
+    if (answers.length > 3) return Alert.alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
+
+    for (const a of answers) {
+      if (a.kind === "choice" && !a.choice) return Alert.alert("Eksik", "Şık seçilmemiş çözüm var.");
+      if (a.kind === "photo" && !a.imageUri) return Alert.alert("Eksik", "Fotoğraf seçilmemiş çözüm var.");
+    }
 
     try {
       setLoading(true);
@@ -337,38 +284,19 @@ export default function AddScreen() {
           question.kind === "photo"
             ? { kind: "photo", imageUri: question.imageUri! }
             : { kind: "text", text: question.text.trim() },
-        answers: providedAnswers.map((a) => {
-          if (a.kind === "choice") {
-            return {
-              id: a.id,
-              kind: a.kind,
-              choice: a.choice,
-              explanation: trimOrUndefined(a.explanation),
-            };
-          }
-
-          if (a.kind === "photo") {
-            return {
-              id: a.id,
-              kind: a.kind,
-              imageUri: a.imageUri,
-              explanation: trimOrUndefined(a.explanation),
-            };
-          }
-
-          // text
-          return {
-            id: a.id,
-            kind: a.kind,
-            text: a.text?.trim(),
-            explanation: trimOrUndefined(a.explanation),
-          };
-        }),
+        answers: answers.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          choice: a.kind === "choice" ? a.choice : undefined,
+          imageUri: a.kind === "photo" ? a.imageUri : undefined,
+          // ✅ boşsa undefined (serviste zaten yazmıyoruz ama double safety)
+          explanation: trimOrUndefined(a.explanation),
+        })),
       });
 
       router.replace("/(tabs)");
     } catch (e: any) {
-      alert("Hata", e?.message ?? "Kaydedilemedi");
+      Alert.alert("Hata", e?.message ?? "Kaydedilemedi");
     } finally {
       setLoading(false);
     }
@@ -626,103 +554,62 @@ export default function AddScreen() {
                     </View>
 
                     {/* Type switch (Choice/Photo) */}
-                    {/* Type switch (Şıklı / Galeri / Metin) */}
-                    <View
-                      style={{
-                        marginTop: 10,
-                        padding: 6,
-                        borderRadius: 18, // daha keskin rounded-2xl hissi
-                        backgroundColor: c.tabBg,
-                        borderWidth: 1,
-                        borderColor: c.tabBorder,
-                        flexDirection: "row",
-                        gap: 6,
-                      }}
-                    >
-                      {(() => {
-                        const isChoice = a.kind === "choice";
-                        const isPhoto = a.kind === "photo";
-                        const isText = a.kind === "text";
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                      <Pressable
+                        onPress={() => switchAnswerKind(a.id, "choice")}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          borderWidth: 1,
+                          borderColor: isChoice ? "transparent" : c.border,
+                          backgroundColor: isChoice ? c.tabActiveBg : c.card,
+                        }}
+                      >
+                        <Text style={{ color: isChoice ? c.tabActive : c.mutedText, fontWeight: "900" }}>
+                          Çoktan Seçmeli
+                        </Text>
+                      </Pressable>
 
-                        const Item = ({
-                          active,
-                          label,
-                          icon,
-                          onPress,
-                        }: {
-                          active: boolean;
-                          label: string;
-                          icon: React.ReactNode;
-                          onPress: () => void;
-                        }) => (
-                          <Pressable
-                            onPress={onPress}
-                            style={{
-                              flex: 1,
-                              paddingVertical: 10,
-                              borderRadius: 16,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexDirection: "row",
-                              gap: 8,
-                              backgroundColor: active ? c.tabActiveBg : "transparent",
-                            }}
-                          >
-                            {icon}
-                            <Text style={{ color: active ? c.tabActive : c.tabInactive, fontWeight: "900" }}>
-                              {label}
-                            </Text>
-                          </Pressable>
-                        );
+                      <Pressable
+                        onPress={() => switchAnswerKind(a.id, "photo")}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          borderWidth: 1,
+                          borderColor: isPhoto ? "transparent" : c.border,
+                          backgroundColor: isPhoto ? c.tabActiveBg : c.card,
+                        }}
+                      >
+                        <Text style={{ color: isPhoto ? c.tabActive : c.mutedText, fontWeight: "900" }}>
+                          Görsel
+                        </Text>
 
-                        return (
-                          <>
-                            <Item
-                              active={isChoice}
-                              label="Şıklı"
-                              onPress={() => switchAnswerKind(a.id, "choice")}
-                              icon={<CheckCircle2 size={18} color={isChoice ? c.tabActive : c.tabInactive} />}
-                            />
-                            <Item
-                              active={isPhoto}
-                              label="Görsel"
-                              onPress={() => switchAnswerKind(a.id, "photo")}
-                              icon={<ImageIcon size={18} color={isPhoto ? c.tabActive : c.tabInactive} />}
-                            />
-                            <Item
-                              active={isText}
-                              label="Metin"
-                              onPress={() => switchAnswerKind(a.id, "text")}
-                              icon={<TypeIcon size={18} color={isText ? c.tabActive : c.tabInactive} />}
-                            />
-                          </>
-                        );
-                      })()}
+                      </Pressable>
                     </View>
 
                     {/* Choice */}
                     {isChoice && <ChoiceGrid a={a} />}
 
                     {/* Photo */}
-                    {a.kind === "photo" && (
+                    {isPhoto && (
                       <View style={{ marginTop: 12 }}>
                         <View style={{ flexDirection: "row", gap: 10 }}>
                           <Pressable
                             onPress={() => pickAnswerPhoto(a.id)}
                             style={{
                               flex: 1,
-                              height: 56,
                               borderRadius: 16,
+                              paddingVertical: 12,
+                              alignItems: "center",
                               borderWidth: 1,
                               borderColor: c.border,
                               backgroundColor: c.inputBg,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 10,
                             }}
                           >
-                            <ImageIcon size={22} color={c.accent} />
                             <Text style={{ color: c.text, fontWeight: "900" }}>Galeri</Text>
                           </Pressable>
 
@@ -730,18 +617,14 @@ export default function AddScreen() {
                             onPress={() => takeAnswerPhoto(a.id)}
                             style={{
                               flex: 1,
-                              height: 56,
                               borderRadius: 16,
+                              paddingVertical: 12,
+                              alignItems: "center",
                               borderWidth: 1,
                               borderColor: c.border,
                               backgroundColor: c.inputBg,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 10,
                             }}
                           >
-                            <Camera size={22} color={c.accent} />
                             <Text style={{ color: c.text, fontWeight: "900" }}>Kamera</Text>
                           </Pressable>
                         </View>
@@ -759,7 +642,7 @@ export default function AddScreen() {
                             justifyContent: "center",
                           }}
                         >
-                          {a.imageUri ? (
+                          {"imageUri" in a && a.imageUri ? (
                             <Image
                               source={{ uri: a.imageUri }}
                               style={{ width: "100%", height: "100%" }}
@@ -767,30 +650,10 @@ export default function AddScreen() {
                             />
                           ) : (
                             <Text style={{ color: c.mutedText, fontWeight: "700" }}>
-                              Çözüm görseli ekle (Galeri / Kamera)
+                              Çözüm fotoğrafı ekle
                             </Text>
                           )}
                         </View>
-                      </View>
-                    )}
-
-                    {a.kind === "text" && (
-                      <View style={{ marginTop: 12 }}>
-                        <TextInput
-                          value={a.text ?? ""}
-                          onChangeText={(t) => updateAnswer(a.id, { text: t })}
-                          placeholder="Çözümü metin olarak yaz"
-                          placeholderTextColor={c.mutedText}
-                          maxLength={200}
-                          multiline
-                          style={[
-                            styles.input,
-                            { minHeight: 110, textAlignVertical: "top", paddingTop: 12 },
-                          ]}
-                        />
-                        <Text style={{ marginTop: 6, color: c.mutedText, fontWeight: "700", textAlign: "right" }}>
-                          {(a.text?.length ?? 0)}/200
-                        </Text>
                       </View>
                     )}
 
@@ -813,26 +676,9 @@ export default function AddScreen() {
               </Pressable>
 
               {/* Save */}
-
-
-              {/* Save */}
-              <Pressable
-                onPress={onSave}
-                disabled={saveDisabled}
-                style={[
-                  styles.primaryBtn,
-                  { opacity: saveDisabled ? 0.45 : 1 },
-                ]}
-              >
+              <Pressable onPress={onSave} disabled={loading} style={[styles.primaryBtn, { opacity: loading ? 0.7 : 1 }]}>
                 {loading ? <ActivityIndicator /> : <Text style={styles.primaryBtnText}>Kaydet</Text>}
               </Pressable>
-
-              {/* Draft reason (why disabled) */}
-              {!!draftSaveError && (
-                <Text className="mt-2 px-3" style={{ color: c.mutedText, marginBottom: 10 }}>
-                  {draftSaveError}
-                </Text>
-              )}
             </ScrollView>
           </PagerView>
         </KeyboardAvoidingView>

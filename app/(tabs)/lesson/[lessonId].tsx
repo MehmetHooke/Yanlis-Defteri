@@ -127,6 +127,14 @@ export default function LessonTopicsScreen() {
     }, [lessonId])
   );
 
+  if (loading) {
+    return (
+      <View  style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
@@ -187,7 +195,7 @@ export default function LessonTopicsScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(tabs)/lesson/[lessonId]/topic/[topicId]",
-                  params: { lessonId, topicId: item.id, from: `/ (tabs)/lesson/${lessonId}?from=${from ?? "/(tabs)/questions"}` },
+                  params: { lessonId, topicId: item.id, from: `/(tabs)/lesson/${lessonId}?from=${from ?? "/(tabs)/questions"}` },
                 })
               }
             />

@@ -3,23 +3,26 @@ import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
+  Dimensions,
   Image,
   ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
 
-import { useTheme } from "@/src/context/ThemeContext";
 import { auth, db } from "@/src/lib/firebase";
 import { deleteQuestionCascade } from "@/src/services/question.service";
+
+// sende bu var
+import { useTheme } from "@/src/context/ThemeContext"; // sende bu var
+
 import { ChevronDown, ChevronLeft, ChevronUp, Trash2 } from "lucide-react-native";
 
-// AppAlert varsa:
-// import { useAppAlert } from "@/src/components/common/AppAlertProvider";
-
-import { Dimensions, Modal } from "react-native";
+import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import {
   Gesture,
   GestureDetector,
@@ -31,7 +34,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-/** Firestore Timestamp -> Date format */
+/** Timestamp -> readable */
 function formatCreatedAt(createdAt: any) {
   try {
     const d: Date | null =
@@ -166,7 +169,14 @@ function FullscreenZoomImage({
       onShow={() => resetTransform()}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", paddingHorizontal: 18 }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.95)",
+            justifyContent: "center",
+            paddingHorizontal: 18,
+          }}
+        >
           <View style={{ alignItems: "flex-end", marginBottom: 12 }}>
             <Pressable
               onPress={onClose}
@@ -200,7 +210,14 @@ function FullscreenZoomImage({
             />
           </GestureDetector>
 
-          <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textAlign: "center", marginTop: 12 }}>
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.55)",
+              fontSize: 12,
+              textAlign: "center",
+              marginTop: 12,
+            }}
+          >
             Pinch: yakınlaştır • Sürükle: kaydır • Çift dokun: sıfırla
           </Text>
         </View>
@@ -209,48 +226,73 @@ function FullscreenZoomImage({
   );
 }
 
-/** ---- Answer model ---- */
+/** ---- Types (new + legacy compatible) ---- */
 type Answer =
   | { id: string; kind: "choice"; choice?: "A" | "B" | "C" | "D" | "E"; explanation?: string }
   | { id: string; kind: "photo"; image?: { url: string; path: string }; explanation?: string };
 
-type QuestionV3 = {
+type QuestionDoc = {
   id?: string;
   userId: string;
   lessonId: string;
   topicId: string;
-  questionImage: { url: string; path: string };
-  answers: Answer[];
+
+  // ✅ NEW (after your change)
+  question?:
+  | { kind: "photo"; image: { url: string; path: string } }
+  | { kind: "text"; text: string };
+
+  // ✅ LEGACY V3 (old)
+  questionImage?: { url: string; path: string };
+
+  // ✅ LEGACY V2
+  imageUrl?: string;
+  imagePath?: string;
+
+  answers?: Answer[];
+
   createdAt?: any;
   updatedAt?: any;
 };
 
+function getQuestionImageUrl(q: QuestionDoc | null) {
+  const fromNew =
+    q?.question?.kind === "photo" ? q.question.image?.url : undefined;
+  const fromLegacyV3 = q?.questionImage?.url;
+  const fromLegacyV2 = q?.imageUrl;
+  return fromNew || fromLegacyV3 || fromLegacyV2 || null;
+}
+
+function getQuestionText(q: QuestionDoc | null) {
+  if (q?.question?.kind === "text") return q.question.text;
+  return "";
+}
+
 export default function QuestionDetailScreen() {
-  const { lessonId, topicId, questionId, from } = useLocalSearchParams<{
+  const { lessonId, topicId, questionId } = useLocalSearchParams<{
     lessonId: string;
     topicId: string;
     questionId: string;
-    from?: string;
   }>();
 
-  const [item, setItem] = useState<QuestionV3 | null>(null);
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const { alert, confirm } = useAppAlert();
+
+  const [item, setItem] = useState<QuestionDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   const [lessonName, setLessonName] = useState("Ders");
   const [topicName, setTopicName] = useState("Konu");
 
-  const { theme } = useTheme();
-  const c = theme.colors;
-
-  // const { alert, confirm } = useAppAlert();
-
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [viewerUri, setViewerUri] = useState<string>("");
 
   const [showAnswers, setShowAnswers] = useState(false);
 
-  // ✅ answers accordion animation (reanimated)
+  // accordion anim
   const aHeight = useSharedValue(0);
   const aOpacity = useSharedValue(0);
 
@@ -263,38 +305,18 @@ export default function QuestionDetailScreen() {
     const next = !showAnswers;
     setShowAnswers(next);
 
-    // İçerik sığsın diye güvenli yükseklik (cevap sayın çoksa büyütürüz)
-    const OPEN_H = 900;
+    // içerik fazla olursa bile yeterli kalsın diye büyük bir değer
+    const OPEN_H = 1200;
 
     aHeight.value = withTiming(next ? OPEN_H : 0, { duration: 220 });
     aOpacity.value = withTiming(next ? 1 : 0, { duration: 180 });
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user || !lessonId || !topicId || !questionId) return;
-
-        const qSnap = await getDoc(
-          doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId, "questions", questionId)
-        );
-        if (qSnap.exists()) setItem(qSnap.data() as QuestionV3);
-
-        const [lSnap, tSnap] = await Promise.all([
-          getDoc(doc(db, "users", user.uid, "lessons", lessonId)),
-          getDoc(doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)),
-        ]);
-        if (lSnap.exists()) setLessonName((lSnap.data() as any)?.name ?? "Ders");
-        if (tSnap.exists()) setTopicName((tSnap.data() as any)?.name ?? "Konu");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [lessonId, topicId, questionId]);
-
   const createdAtText = useMemo(() => formatCreatedAt(item?.createdAt), [item?.createdAt]);
   const answers = useMemo(() => item?.answers ?? [], [item?.answers]);
+
+  const questionUri = useMemo(() => getQuestionImageUrl(item), [item]);
+  const questionText = useMemo(() => getQuestionText(item), [item]);
 
   const openViewer = (uri: string) => {
     setViewerUri(uri);
@@ -302,31 +324,60 @@ export default function QuestionDetailScreen() {
   };
 
   const handleBack = () => {
-    // deterministik geri
-    if (from) return router.replace(from as any);
-    return router.replace({
+    router.replace({
       pathname: "/(tabs)/lesson/[lessonId]/topic/[topicId]",
-      params: { lessonId, topicId, from: "/(tabs)/questions" },
+      params: { lessonId, topicId },
     });
   };
 
-  const onDeletePress = () => {
-    const user = auth.currentUser;
-    if (!user || !lessonId || !topicId || !questionId) return;
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [lessonId, topicId]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user || !lessonId || !topicId || !questionId) return;
 
-    // AppAlert varsa:
-    // return confirm({
-    //   title: "Soruyu sil?",
-    //   message: "Bu işlem geri alınamaz. Soru ve ilgili görseller silinecek.",
-    //   destructive: true,
-    //   confirmText: "Soruyu Sil",
-    //   cancelText: "Vazgeç",
-    //   onConfirm: async () => { ... }
-    // });
+        const qRef = doc(
+          db,
+          "users",
+          user.uid,
+          "lessons",
+          lessonId,
+          "topics",
+          topicId,
+          "questions",
+          questionId
+        );
 
-    // MVP: Alert.alert kalsın istersen:
-    // (Ama sen AppAlert istiyordun, ben üstte hazır bıraktım.)
-  };
+        const qSnap = await getDoc(qRef);
+        if (qSnap.exists()) {
+          setItem({ id: qSnap.id, ...(qSnap.data() as any) } as QuestionDoc);
+        } else {
+          setItem(null);
+        }
+
+        const [lSnap, tSnap] = await Promise.all([
+          getDoc(doc(db, "users", user.uid, "lessons", lessonId)),
+          getDoc(doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)),
+        ]);
+
+        if (lSnap.exists()) setLessonName((lSnap.data() as any)?.name ?? "Ders");
+        if (tSnap.exists()) setTopicName((tSnap.data() as any)?.name ?? "Konu");
+      } catch (e: any) {
+        console.log("Question detail fetch error:", e);
+        alert("Hata", e?.message ?? "Soru yüklenemedi", { variant: "danger" });
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonId, topicId, questionId]);
 
   const doDelete = async () => {
     const user = auth.currentUser;
@@ -336,12 +387,23 @@ export default function QuestionDetailScreen() {
       setDeleting(true);
       await deleteQuestionCascade({ userId: user.uid, lessonId, topicId, questionId });
       handleBack();
-    } catch (e) {
+    } catch (e: any) {
       console.log("Silme hatası:", e);
-      // alert("Hata", "Silinirken bir problem oluştu.", { variant: "danger" });
+      alert("Hata", e?.message ?? "Silinirken bir problem oluştu.", { variant: "danger" });
     } finally {
       setDeleting(false);
     }
+  };
+
+  const onDeletePress = () => {
+    confirm({
+      title: "Soruyu sil?",
+      message: "Bu işlem geri alınamaz. Soru ve ilgili görseller silinecek.",
+      destructive: true,
+      confirmText: "Sil",
+      cancelText: "Vazgeç",
+      onConfirm: doDelete,
+    });
   };
 
   if (loading) {
@@ -357,6 +419,7 @@ export default function QuestionDetailScreen() {
       <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 18 }}>
           <Text style={{ color: c.mutedText, fontWeight: "700" }}>Soru bulunamadı.</Text>
+
           <Pressable
             onPress={handleBack}
             style={{
@@ -374,8 +437,13 @@ export default function QuestionDetailScreen() {
     );
   }
 
-  const questionUri = item.questionImage?.url;
-
+  if (loading) {
+    return (
+      <View  style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
@@ -406,14 +474,29 @@ export default function QuestionDetailScreen() {
             </Text>
           </View>
 
-          <View style={{ width: 42 }} />
+          <Pressable
+            onPress={onDeletePress}
+            disabled={deleting}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              backgroundColor: "rgba(239,68,68,0.14)",
+              borderWidth: 1,
+              borderColor: "rgba(239,68,68,0.28)",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            <Trash2 size={18} color={"rgba(239,68,68,0.95)"} />
+          </Pressable>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 120 }}>
-        {/* Soru görseli */}
-        <Pressable
-          onPress={() => questionUri && openViewer(questionUri)}
+        {/* Question (photo or text) */}
+        <View
           style={{
             borderRadius: 18,
             overflow: "hidden",
@@ -422,18 +505,40 @@ export default function QuestionDetailScreen() {
             backgroundColor: c.card,
           }}
         >
-          <Image
-            source={{ uri: questionUri }}
-            style={{ width: "100%", height: 420, backgroundColor: c.inputBg }}
-            resizeMode="cover"
-          />
-        </Pressable>
+          {questionUri ? (
+            <Pressable onPress={() => openViewer(questionUri!)}>
+              <Image
+                source={{ uri: questionUri }}
+                style={{ width: "100%", height: 420, backgroundColor: c.inputBg }}
+                resizeMode="cover"
+              />
+            </Pressable>
+          ) : (
+            <View
+              style={{
+                padding: 16,
+                minHeight: 220,
+                justifyContent: "center",
+                backgroundColor: c.card,
+              }}
+            >
+              <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
+                Bu soru metin olarak kaydedilmiş
+              </Text>
+              {!!questionText && (
+                <Text style={{ color: c.text, marginTop: 10, lineHeight: 20, fontWeight: "700" }}>
+                  {questionText}
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
 
         <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}>
-          Tam ekran için dokun • Pinch/Drag/DoubleTap destekli
+          {questionUri ? "Tam ekran için dokun • Pinch/Drag/DoubleTap destekli" : ""}
         </Text>
 
-        {/* Cevaplar toggle */}
+        {/* Answers toggle */}
         <Pressable
           onPress={toggleAnswers}
           style={{
@@ -452,10 +557,14 @@ export default function QuestionDetailScreen() {
           <Text style={{ color: c.text, fontWeight: "900" }}>
             {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
           </Text>
-          {showAnswers ? <ChevronUp size={18} color={c.mutedText} /> : <ChevronDown size={18} color={c.mutedText} />}
+          {showAnswers ? (
+            <ChevronUp size={18} color={c.mutedText} />
+          ) : (
+            <ChevronDown size={18} color={c.mutedText} />
+          )}
         </Pressable>
 
-        {/* Cevaplar (animated container) */}
+        {/* Answers list */}
         <Animated.View style={[{ overflow: "hidden" }, answersAnimStyle]}>
           <View style={{ marginTop: 12, gap: 12 }}>
             {answers.map((a, idx) => (
@@ -512,10 +621,6 @@ export default function QuestionDetailScreen() {
                     ) : (
                       <Text style={{ color: c.mutedText, marginTop: 6 }}>Fotoğraf yok</Text>
                     )}
-
-                    <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}>
-                      Cevap fotoğrafını da tam ekran açabilirsin.
-                    </Text>
                   </View>
                 ) : null}
 
@@ -537,51 +642,16 @@ export default function QuestionDetailScreen() {
                   padding: 14,
                 }}
               >
-                <Text style={{ color: c.mutedText }}>
-                  Cevap bulunamadı.
-                </Text>
+                <Text style={{ color: c.mutedText }}>Cevap bulunamadı.</Text>
               </View>
             ) : null}
           </View>
         </Animated.View>
-
-        {/* Delete area (alt kısım) */}
-        <View style={{ marginTop: 16 }}>
-          <Pressable
-            onPress={() => {
-              // AppAlert confirm kullanıyorsan burada confirm çağır
-              // Şimdilik direkt sil:
-              doDelete();
-            }}
-            disabled={deleting}
-            style={{
-              borderRadius: 16,
-              paddingVertical: 12,
-              paddingHorizontal: 14,
-              backgroundColor: "rgba(239,68,68,0.14)",
-              borderWidth: 1,
-              borderColor: "rgba(239,68,68,0.28)",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              opacity: deleting ? 0.7 : 1,
-            }}
-          >
-            <Trash2 size={18} color={"rgba(239,68,68,0.95)"} />
-            <Text style={{ color: c.text, fontWeight: "900" }}>
-              {deleting ? "Siliniyor..." : "Soruyu Sil"}
-            </Text>
-          </Pressable>
-
-          <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 8, textAlign: "center" }}>
-            Bu işlem geri alınamaz. Soru ve ilgili görseller silinir.
-          </Text>
-        </View>
       </ScrollView>
 
+      {/* Viewer */}
       <FullscreenZoomImage
-        uri={viewerUri ?? questionUri}
+        uri={viewerUri}
         visible={viewerOpen}
         onClose={() => setViewerOpen(false)}
       />

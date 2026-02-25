@@ -238,13 +238,26 @@ export async function addQuestionV3(params: {
   lesson: string;
   topic: string;
 
-  answers: Array<{
-    id: string;
-    kind: "choice" | "photo";
-    choice?: "A" | "B" | "C" | "D" | "E";
-    explanation?: string;
-    imageUri?: string; // kind=photo ise zorunlu
-  }>;
+  answers: Array<
+    | {
+        id: string;
+        kind: "choice";
+        choice?: "A" | "B" | "C" | "D" | "E";
+        explanation?: string;
+      }
+    | {
+        id: string;
+        kind: "photo";
+        imageUri?: string;
+        explanation?: string;
+      }
+    | {
+        id: string;
+        kind: "text";
+        text?: string;
+        explanation?: string;
+      }
+  >;
 }) {
   const { userId, lesson, topic } = params;
   const answers = params.answers ?? [];
@@ -261,14 +274,26 @@ export async function addQuestionV3(params: {
   }
 
   // ✅ en az 1, max 3 cevap
-  if (answers.length < 1) throw new Error("En az 1 cevap eklemelisin.");
-  if (answers.length > 3) throw new Error("En fazla 3 cevap ekleyebilirsin.");
+  // ✅ en az 1, max 3 kart
+  if (answers.length < 1) throw new Error("En az 1 çözüm kartı olmalı.");
+  if (answers.length > 3) throw new Error("En fazla 3 çözüm ekleyebilirsin.");
 
-  for (const a of answers) {
-    if (a.kind === "choice") {
-      if (!a.choice) throw new Error("Şık seçilmemiş cevap var.");
-    } else {
-      if (!a.imageUri) throw new Error("Fotoğraf seçilmemiş cevap var.");
+  // ✅ sadece "dolu" cevapları dikkate al
+  const providedAnswers = answers.filter((a) => {
+    if (a.kind === "choice") return !!a.choice;
+    if (a.kind === "photo") return !!a.imageUri;
+    return !!a.text?.trim();
+  });
+
+  // ✅ en az 1 dolu çözüm
+  if (providedAnswers.length < 1) {
+    throw new Error("En az 1 çözüm eklemelisin (Şıklı / Görsel / Metin).");
+  }
+
+  // ✅ text limit (istersen)
+  for (const a of providedAnswers) {
+    if (a.kind === "text" && (a.text?.length ?? 0) > 200) {
+      throw new Error("Metin çözüm 200 karakteri geçemez.");
     }
   }
 
@@ -287,24 +312,36 @@ export async function addQuestionV3(params: {
   // 2) cevap upload (photo ise)
   const uploadedAnswers: any[] = [];
 
-  for (const a of answers) {
-    if (a.kind === "photo" && a.imageUri) {
-      const img = await uploadImageUri(userId, a.imageUri, "answers");
+  for (const a of providedAnswers) {
+    if (a.kind === "photo") {
+      // burada imageUri garanti var
+      const img = await uploadImageUri(userId, a.imageUri!, "answers");
       const obj: any = { id: a.id, kind: "photo", image: img };
 
-      // ✅ undefined göndermiyoruz
       const exp = a.explanation?.trim();
       if (exp) obj.explanation = exp;
 
       uploadedAnswers.push(obj);
-    } else {
+      continue;
+    }
+
+    if (a.kind === "choice") {
       const obj: any = { id: a.id, kind: "choice", choice: a.choice };
 
       const exp = a.explanation?.trim();
       if (exp) obj.explanation = exp;
 
       uploadedAnswers.push(obj);
+      continue;
     }
+
+    // text
+    const obj: any = { id: a.id, kind: "text", text: a.text!.trim() };
+
+    const exp = a.explanation?.trim();
+    if (exp) obj.explanation = exp;
+
+    uploadedAnswers.push(obj);
   }
 
   // 3) question doc

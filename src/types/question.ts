@@ -1,3 +1,5 @@
+// src/types/question.ts
+
 export type Answer =
   | {
       id: string;
@@ -10,6 +12,23 @@ export type Answer =
       kind: "photo";
       image?: { url: string; path: string };
       explanation?: string;
+    }
+  | {
+      id: string;
+      kind: "text";
+      text?: string;
+      explanation?: string;
+    };
+
+// ✅ NEW V3 (after your last changes)
+export type QuestionV3Question =
+  | {
+      kind: "photo";
+      image: { url: string; path: string };
+    }
+  | {
+      kind: "text";
+      text: string;
     };
 
 export type Question = {
@@ -18,11 +37,14 @@ export type Question = {
   lessonId: string;
   topicId: string;
 
-  // ✅ V3
+  // ✅ NEW (primary)
+  question?: QuestionV3Question;
+
+  // ✅ LEGACY V3 (older data)
   questionImage?: { url: string; path: string };
   answers?: Answer[];
 
-  // ✅ V2 (fallback)
+  // ✅ LEGACY V2 (fallback)
   imageUrl?: string;
   imagePath?: string;
 

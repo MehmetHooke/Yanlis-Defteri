@@ -183,9 +183,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const t = setTimeout(() => setThemeLoading(false), 1200);
+    
     return () => {
-      clearTimeout(t);
+      
       unsub();
     };
   }, []);

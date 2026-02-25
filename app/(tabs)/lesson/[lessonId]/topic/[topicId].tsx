@@ -1,3 +1,4 @@
+import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import EmptyState from "@/src/components/EmptyState";
 import { useTheme } from "@/src/context/ThemeContext";
 import { auth, db } from "@/src/lib/firebase";
@@ -10,6 +11,7 @@ import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
   Image,
   ImageBackground,
@@ -24,7 +26,17 @@ function QuestionRow({ item, onPress }: { item: Question; onPress: () => void })
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const img = item.questionImage?.url ?? item.imageUrl;
+  // ✅ yeni schema + legacy fallback
+  const img =
+    item.question?.kind === "photo"
+      ? item.question.image?.url
+      : item.questionImage?.url ?? item.imageUrl;
+
+  const textPreview =
+    item.question?.kind === "text" ? item.question.text : "";
+
+  const isPhoto = !!img;
+  const chipLabel = isPhoto ? "Görsel" : "Metin";
 
   const chipStyle = useMemo(
     () => ({
@@ -51,16 +63,37 @@ function QuestionRow({ item, onPress }: { item: Question; onPress: () => void })
         overflow: "hidden",
       }}
     >
-      <Image
-        source={{ uri: img }}
-        style={{ width: "100%", height: 176, backgroundColor: c.inputBg }}
-        resizeMode="cover"
-      />
+      {/* ✅ Preview */}
+      {isPhoto ? (
+        <Image
+          source={{ uri: img! }}
+          style={{ width: "100%", height: 176, backgroundColor: c.inputBg }}
+          resizeMode="cover"
+        />
+      ) : (
+        <View
+          style={{
+            width: "100%",
+            height: 176,
+            backgroundColor: c.inputBg,
+            padding: 14,
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
+            Metin soru
+          </Text>
+          <Text
+            style={{ color: c.text, marginTop: 8, fontSize: 13, fontWeight: "800" }}
+            numberOfLines={4}
+          >
+            {textPreview?.trim() ? textPreview : "Önizleme yok"}
+          </Text>
+        </View>
+      )}
 
       <View style={{ padding: 14 }}>
-        <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "700" }}>
-          Soru
-        </Text>
+        <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "700" }}>Soru</Text>
 
         <Text style={{ color: c.text, fontSize: 13, fontWeight: "800", marginTop: 4 }}>
           Detay için dokun
@@ -69,7 +102,7 @@ function QuestionRow({ item, onPress }: { item: Question; onPress: () => void })
         <View style={{ marginTop: 10 }}>
           <View style={chipStyle}>
             <Text style={{ color: c.mutedText, fontSize: 11, fontWeight: "700" }}>
-              Görsel
+              {chipLabel}
             </Text>
           </View>
         </View>
@@ -94,23 +127,26 @@ export default function TopicQuestionsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  // const { alert } = useAppAlert();
+  const { alert } = useAppAlert();
 
   const handleBack = () => {
-    // 1) from varsa kesin oraya dön
-    if (from) return router.replace(from as any);
-
-    // 2) yoksa ders sayfasına dön (topics listesi)
     if (lessonId) {
-      return router.replace({
+      router.replace({
         pathname: "/(tabs)/lesson/[lessonId]",
-        params: { lessonId, from: "/(tabs)/questions" },
+        params: { lessonId },
       });
+      return;
     }
-
-    // 3) fallback
-    return router.replace("/(tabs)/questions");
+    router.replace("/(tabs)");
   };
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true; // ✅ default back'i engelle
+    });
+    return () => sub.remove();
+  }, [lessonId]);
 
   useEffect(() => {
     (async () => {
@@ -145,7 +181,7 @@ export default function TopicQuestionsScreen() {
       setItems(data);
     } catch (e: any) {
       console.log("Topic questions HATA =", e);
-      // alert("Liste Hatası", e?.message ?? "Bilinmeyen hata", { variant: "danger" });
+      alert("Liste Hatası", e?.message ?? "Bilinmeyen hata", { variant: "danger" });
       setItems([]);
     } finally {
       setLoading(false);
@@ -157,6 +193,15 @@ export default function TopicQuestionsScreen() {
       fetchData();
     }, [lessonId, topicId])
   );
+
+  if (loading) {
+    return (
+      <View  style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
 
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
@@ -218,7 +263,7 @@ export default function TopicQuestionsScreen() {
                     lessonId,
                     topicId,
                     questionId: item.id,
-                    from: from ?? "/(tabs)/questions",
+
                   },
                 })
               }
