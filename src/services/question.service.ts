@@ -229,9 +229,15 @@ export async function addQuestionV2(params: {
 
 export async function addQuestionV3(params: {
   userId: string;
-  questionImageUri: string; // ✅ tek soru foto
+
+  // ✅ soru foto zorunlu değil artık
+  question:
+    | { kind: "photo"; imageUri: string }
+    | { kind: "text"; text: string };
+
   lesson: string;
   topic: string;
+
   answers: Array<{
     id: string;
     kind: "choice" | "photo";
@@ -240,17 +246,23 @@ export async function addQuestionV3(params: {
     imageUri?: string; // kind=photo ise zorunlu
   }>;
 }) {
-  const { userId, questionImageUri, lesson, topic } = params;
+  const { userId, lesson, topic } = params;
   const answers = params.answers ?? [];
+  const question = params.question;
 
-  if (!questionImageUri) throw new Error("Soru fotoğrafı zorunlu.");
   if (!lesson.trim()) throw new Error("Ders boş olamaz.");
   if (!topic.trim()) throw new Error("Konu boş olamaz.");
 
+  // ✅ soru validasyonu
+  if (question.kind === "photo") {
+    if (!question.imageUri) throw new Error("Soru fotoğrafı seçilmedi.");
+  } else {
+    if (!question.text?.trim()) throw new Error("Soru metni boş olamaz.");
+  }
+
   // ✅ en az 1, max 3 cevap
-  if (answers.length < 1) throw new Error("En az 1 doğru cevap eklemelisin.");
-  if (answers.length > 3)
-    throw new Error("En fazla 3 doğru cevap ekleyebilirsin.");
+  if (answers.length < 1) throw new Error("En az 1 cevap eklemelisin.");
+  if (answers.length > 3) throw new Error("En fazla 3 cevap ekleyebilirsin.");
 
   for (const a of answers) {
     if (a.kind === "choice") {
@@ -263,31 +275,35 @@ export async function addQuestionV3(params: {
   const { lessonId } = await ensureLesson(userId, lesson);
   const { topicId } = await ensureTopic(userId, lessonId, topic);
 
-  // 1) soru foto upload
-  const questionImage = await uploadImageUri(
-    userId,
-    questionImageUri,
-    "questions",
-  );
+  // 1) soru upload (photo ise)
+  let questionPayload: any;
+  if (question.kind === "photo") {
+    const qImg = await uploadImageUri(userId, question.imageUri, "questions");
+    questionPayload = { kind: "photo", image: qImg };
+  } else {
+    questionPayload = { kind: "text", text: question.text.trim() };
+  }
 
-  // 2) cevap foto upload (sadece kind=photo)
-  const uploadedAnswers = [];
+  // 2) cevap upload (photo ise)
+  const uploadedAnswers: any[] = [];
+
   for (const a of answers) {
     if (a.kind === "photo" && a.imageUri) {
       const img = await uploadImageUri(userId, a.imageUri, "answers");
-      uploadedAnswers.push({
-        id: a.id,
-        kind: "photo" as const,
-        image: img,
-        explanation: a.explanation?.trim() || undefined,
-      });
+      const obj: any = { id: a.id, kind: "photo", image: img };
+
+      // ✅ undefined göndermiyoruz
+      const exp = a.explanation?.trim();
+      if (exp) obj.explanation = exp;
+
+      uploadedAnswers.push(obj);
     } else {
-      uploadedAnswers.push({
-        id: a.id,
-        kind: "choice" as const,
-        choice: a.choice,
-        explanation: a.explanation?.trim() || undefined,
-      });
+      const obj: any = { id: a.id, kind: "choice", choice: a.choice };
+
+      const exp = a.explanation?.trim();
+      if (exp) obj.explanation = exp;
+
+      uploadedAnswers.push(obj);
     }
   }
 
@@ -297,8 +313,9 @@ export async function addQuestionV3(params: {
     lessonId,
     topicId,
 
-    // ✅ V3 alanları
-    questionImage,
+    // ✅ yeni alan
+    question: questionPayload,
+
     answers: uploadedAnswers,
 
     createdAt: serverTimestamp(),
