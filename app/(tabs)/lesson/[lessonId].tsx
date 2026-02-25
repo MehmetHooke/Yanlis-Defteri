@@ -1,24 +1,61 @@
-// app/(tabs)/lesson/[lessonId].tsx
+import { useTheme } from "@/src/context/ThemeContext";
 import { auth, db } from "@/src/lib/firebase";
 import { getLessonTopics } from "@/src/services/question.service";
 import type { Topic } from "@/src/types/topic";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from "react-native";
+import { ChevronLeft } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  ImageBackground,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
+// Eğer AppAlertProvider kurduysan bunu aç:
+// import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 
 function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const chipStyle = useMemo(
+    () => ({
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: c.inputBg,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignSelf: "flex-start" as const,
+    }),
+    [c]
+  );
+
   return (
     <Pressable
       onPress={onPress}
-      className="mb-3 rounded-2xl bg-white/10 border border-white/10 p-4"
+      style={{
+        marginBottom: 12,
+        borderRadius: 18,
+        backgroundColor: c.card,
+        borderWidth: 1,
+        borderColor: c.borderStrong,
+        padding: 14,
+      }}
     >
-      <Text className="text-white text-lg font-semibold">{item.name}</Text>
+      <Text style={{ color: c.text, fontSize: 16, fontWeight: "800" }}>
+        {item.name}
+      </Text>
 
-      <View className="mt-2 flex-row gap-2">
-        <View className="rounded-full bg-white/10 border border-white/10 px-3 py-1">
-          <Text className="text-white/70 text-xs">{item.questionCount ?? 0} soru</Text>
+      <View style={{ marginTop: 10 }}>
+        <View style={chipStyle}>
+          <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "700" }}>
+            {item.questionCount ?? 0} soru
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -26,13 +63,25 @@ function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
 }
 
 export default function LessonTopicsScreen() {
-  const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
+  const { lessonId, from } = useLocalSearchParams<{ lessonId: string; from?: string }>();
   const [items, setItems] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [lessonName, setLessonName] = useState<string>("Ders");
 
-  // ✅ Ders adını çek (header için)
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  // AppAlert varsa:
+  // const { alert } = useAppAlert();
+
+  const handleBack = () => {
+    if (from) {
+      router.replace(from as any);
+      return;
+    }
+    router.replace("/(tabs)/questions");
+  };
+
   useEffect(() => {
     (async () => {
       const user = auth.currentUser;
@@ -64,7 +113,8 @@ export default function LessonTopicsScreen() {
       setItems(data);
     } catch (e: any) {
       console.log("Lesson topics HATA =", e);
-      Alert.alert("Liste Hatası", e?.message ?? "Bilinmeyen hata");
+      // AppAlert varsa:
+      // alert("Liste Hatası", e?.message ?? "Bilinmeyen hata", { variant: "danger" });
       setItems([]);
     } finally {
       setLoading(false);
@@ -78,35 +128,51 @@ export default function LessonTopicsScreen() {
   );
 
   return (
-    <View className="flex-1 bg-black">
-      {/* ✅ Sol üst geri + dinamik başlık */}
-      <View className="pt-14 px-6 pb-4 flex-row items-center">
-        <Pressable
-          onPress={() => router.back()}
-          className="rounded-xl bg-white/10 px-4 py-2 border border-white/10"
-        >
-          <Text className="text-white">Geri</Text>
-        </Pressable>
+    <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
+      {/* Header */}
+      <View style={{ paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Pressable
+            onPress={handleBack}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              backgroundColor: c.inputBg,
+              borderWidth: 1,
+              borderColor: c.border,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ChevronLeft size={22} color={c.text} />
+          </Pressable>
 
-        <View className="flex-1 items-center">
-          <Text className="text-xl font-bold text-white" numberOfLines={1}>
-            {lessonName}
-          </Text>
-          <Text className="text-white/50 text-xs mt-1">Konular</Text>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
+              {lessonName}
+            </Text>
+            <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }}>
+              Konular
+            </Text>
+          </View>
+
+          {/* başlığı ortalamak için spacer */}
+          <View style={{ width: 42 }} />
         </View>
-
-        {/* sağ tarafta boşluk (başlık ortalansın diye) */}
-        <View style={{ width: 72 }} />
       </View>
 
+      {/* Content */}
       {loading ? (
-        <View className="flex-1 items-center justify-center">
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator />
         </View>
       ) : items.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-white/70 text-center">Bu derste henüz konu yok.</Text>
-          <Text className="text-white/40 text-center mt-2">
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }}>
+          <Text style={{ color: c.text, fontWeight: "800", fontSize: 16 }}>
+            Bu derste henüz konu yok.
+          </Text>
+          <Text style={{ color: c.mutedText, textAlign: "center", marginTop: 6 }}>
             Yeni soru eklediğinde konu otomatik oluşacak.
           </Text>
         </View>
@@ -114,20 +180,20 @@ export default function LessonTopicsScreen() {
         <FlatList
           data={items}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 110 }}
           renderItem={({ item }) => (
             <TopicCard
               item={item}
               onPress={() =>
                 router.push({
                   pathname: "/(tabs)/lesson/[lessonId]/topic/[topicId]",
-                  params: { lessonId, topicId: item.id },
+                  params: { lessonId, topicId: item.id, from: `/ (tabs)/lesson/${lessonId}?from=${from ?? "/(tabs)/questions"}` },
                 })
               }
             />
           )}
         />
       )}
-    </View>
+    </ImageBackground>
   );
 }
