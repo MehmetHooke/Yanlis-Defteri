@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
 } from "react";
 import { ImageSourcePropType, useColorScheme } from "react-native";
 
@@ -159,14 +159,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       try {
         const saved = await AsyncStorage.getItem(THEME_KEY);
         if (isPref(saved)) setPreferenceState(saved);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       try {
-        if (!user) return;
+        if (!user) {
+          // login ekranı gibi durumlarda da loading bitsin
+          setThemeLoading(false);
+          return;
+        }
 
         const snap = await getDoc(doc(db, "users", user.uid));
         const data = snap.data() as { themePreference?: ThemePreference } | undefined;
@@ -183,17 +187,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    
-    return () => {
-      
-      unsub();
-    };
+    return () => unsub();
   }, []);
 
   const setPreference = async (pref: ThemePreference) => {
     setPreferenceState(pref);
-    try { await persistLocal(pref); } catch {}
-    try { await persistRemote(pref); } catch {}
+    try { await persistLocal(pref); } catch { }
+    try { await persistRemote(pref); } catch { }
   };
 
   const value = useMemo(
