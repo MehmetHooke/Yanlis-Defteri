@@ -20,7 +20,7 @@ import { deleteQuestionCascade } from "@/src/services/question.service";
 // sende bu var
 import { useTheme } from "@/src/context/ThemeContext"; // sende bu var
 
-import { ChevronDown, ChevronLeft, ChevronUp, Trash2 } from "lucide-react-native";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronUp, Trash2 } from "lucide-react-native";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import {
@@ -306,7 +306,7 @@ export default function QuestionDetailScreen() {
     setShowAnswers(next);
 
     // içerik fazla olursa bile yeterli kalsın diye büyük bir değer
-    const OPEN_H = 1200;
+    const OPEN_H =800;
 
     aHeight.value = withTiming(next ? OPEN_H : 0, { duration: 220 });
     aOpacity.value = withTiming(next ? 1 : 0, { duration: 180 });
@@ -439,7 +439,7 @@ export default function QuestionDetailScreen() {
 
   if (loading) {
     return (
-      <View  style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator />
       </View>
     );
@@ -473,25 +473,10 @@ export default function QuestionDetailScreen() {
               {lessonName} • {createdAtText}
             </Text>
           </View>
-
-          <Pressable
-            onPress={onDeletePress}
-            disabled={deleting}
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 14,
-              backgroundColor: "rgba(239,68,68,0.14)",
-              borderWidth: 1,
-              borderColor: "rgba(239,68,68,0.28)",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: deleting ? 0.7 : 1,
-            }}
-          >
-            <Trash2 size={18} color={"rgba(239,68,68,0.95)"} />
-          </Pressable>
+            {/* sağ tarafa boşluk eşitlik için */}
+          <View style={{ width: 42, height: 42 }} />
         </View>
+
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 120 }}>
@@ -535,7 +520,7 @@ export default function QuestionDetailScreen() {
         </View>
 
         <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}>
-          {questionUri ? "Tam ekran için dokun • Pinch/Drag/DoubleTap destekli" : ""}
+          {questionUri ? "Tam ekran için dokunun • Yakınlaştırabilirsiniz" : ""}
         </Text>
 
         {/* Answers toggle */}
@@ -553,10 +538,12 @@ export default function QuestionDetailScreen() {
             alignItems: "center",
             justifyContent: "space-between",
           }}
-        >
-          <Text style={{ color: c.text, fontWeight: "900" }}>
-            {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
-          </Text>
+        > <View className="flex-1 flex-row gap-2">
+            <CheckCircle2 size={18} color={"green"} />
+            <Text style={{ color: c.text, fontWeight: "900" }}>
+              {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
+            </Text>
+          </View>
           {showAnswers ? (
             <ChevronUp size={18} color={c.mutedText} />
           ) : (
@@ -647,6 +634,48 @@ export default function QuestionDetailScreen() {
             ) : null}
           </View>
         </Animated.View>
+
+
+        <View style={{ marginTop: 24 }}>
+          <Pressable
+            onPress={onDeletePress}
+            disabled={deleting}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: "rgba(239,68,68,0.14)",
+              borderWidth: 1,
+              borderColor: "rgba(239,68,68,0.35)",
+              opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            <Trash2 size={18} color="rgba(239,68,68,0.95)" />
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: "600",
+                color: "rgba(239,68,68,0.95)",
+              }}
+            >
+              Soruyu Sil
+            </Text>
+          </Pressable>
+
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: "#9CA3AF", // text-muted
+              textAlign: "center",
+            }}
+          >
+            Bu işlem geri alınamaz. Soru kalıcı olarak silinir.
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Viewer */}
