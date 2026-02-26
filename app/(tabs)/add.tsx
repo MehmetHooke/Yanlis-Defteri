@@ -24,12 +24,13 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
+  BanIcon,
   Camera,
   CheckCircle2,
+  CheckCircle2Icon,
   Image as ImageIcon,
-  Plus,
   Trash2,
-  Type as TypeIcon,
+  Type as TypeIcon
 } from "lucide-react-native";
 
 type DraftAnswer =
@@ -70,22 +71,22 @@ export default function AddScreen() {
     imageUri: null,
   });
   const resetForm = () => {
-  // Soru (default: foto)
-  setQuestion({ kind: "photo", imageUri: null });
+    // Soru (default: foto)
+    setQuestion({ kind: "photo", imageUri: null });
 
-  // Ders / Konu
-  setLesson("");
-  setTopic("");
+    // Ders / Konu
+    setLesson("");
+    setTopic("");
 
-  // Cevaplar (1 tane başlangıç kartı)
-  setAnswers([{ id: Date.now().toString(), kind: "choice" }]);
+    // Cevaplar (1 tane başlangıç kartı)
+    setAnswers([{ id: Date.now().toString(), kind: "choice" }]);
 
-  // Tab geri al
-  setActiveTab(0);
-  pagerRef.current?.setPage(0);
+    // Tab geri al
+    setActiveTab(0);
+    pagerRef.current?.setPage(0);
 
-  // (opsiyonel) en üste kaydırmak istersen scrollRef ile yapılır
-};
+    // (opsiyonel) en üste kaydırmak istersen scrollRef ile yapılır
+  };
 
   const [lesson, setLesson] = useState("");
   const [topic, setTopic] = useState("");
@@ -121,12 +122,12 @@ export default function AddScreen() {
     if (question.kind === "photo") {
       if (!question.imageUri) return "Soru fotoğrafı eklenmemiş. Galeri/Kamera ile ekle veya metin seç.";
     } else {
-      if (!question.text?.trim()) return "Soru metni boş. Metin alanına soruyu yaz.";
+      if (!question.text?.trim()) return "Soru metni boş.Lütfen Metin alanına soruyu yazınız.";
     }
 
     // ders / konu
-    if (!lesson.trim()) return "Ders boş. Ders adını gir.";
-    if (!topic.trim()) return "Konu boş. Konu adını gir.";
+    if (!lesson.trim()) return "Ders boş.Lütfen ders adını giririniz.";
+    if (!topic.trim()) return "Konu boş.Lütfen Konu adını giririniz.";
 
     // cevap: en az 1 dolu çözüm
     if (providedAnswers.length < 1) return "En az 1 çözüm eklemelisin (Şıklı/Galeri/Metin).";
@@ -141,6 +142,29 @@ export default function AddScreen() {
 
     return null;
   }, [question, lesson, topic, answers, providedAnswers]);
+
+  const requirements = useMemo(() => {
+    const isQuestionOk =
+      question.kind === "photo"
+        ? !!question.imageUri
+        : !!question.text?.trim();
+
+    const isLessonOk = !!lesson.trim();
+    const isTopicOk = !!topic.trim();
+    const isAtLeastOneAnswerOk = providedAnswers.length >= 1;
+
+    const isTextLimitOk = !answers.some(
+      (a) => a.kind === "text" && (a.text?.length ?? 0) > 200
+    );
+
+    return [
+      { key: "q", label: "Soru eklendi", ok: isQuestionOk },
+      { key: "l", label: "Ders adı girildi", ok: isLessonOk },
+      { key: "t", label: "Konu adı girildi", ok: isTopicOk },
+      { key: "a", label: "En az 1 çözüm eklendi", ok: isAtLeastOneAnswerOk },
+      { key: "tx", label: "Metin çözüm 200 karakteri geçmiyor", ok: isTextLimitOk },
+    ];
+  }, [question, lesson, topic, providedAnswers.length, answers]);
 
   const saveDisabled = loading || !!draftSaveError;
 
@@ -382,7 +406,7 @@ export default function AddScreen() {
           };
         }),
       });
-      alert("Başarılı","Sorunuz Başarıyla Kaydedildi",{variant:"success"})
+      alert("Başarılı", "Sorunuz Başarıyla Kaydedildi", { variant: "success" })
       resetForm();
       router.replace("/(tabs)/questions");
     } catch (e: any) {
@@ -603,14 +627,14 @@ export default function AddScreen() {
                 <TextInput
                   value={lesson}
                   onChangeText={setLesson}
-                  placeholder="Ders"
+                  placeholder="Ders adı"
                   placeholderTextColor={c.mutedText}
                   style={styles.input}
                 />
                 <TextInput
                   value={topic}
                   onChangeText={setTopic}
-                  placeholder="Konu"
+                  placeholder="Konu adı"
                   placeholderTextColor={c.mutedText}
                   style={styles.input}
                 />
@@ -649,7 +673,7 @@ export default function AddScreen() {
                       style={{
                         marginTop: 10,
                         padding: 6,
-                        borderRadius: 18, // daha keskin rounded-2xl hissi
+                        borderRadius: 25, // daha keskin rounded-2xl hissi
                         backgroundColor: c.tabBg,
                         borderWidth: 1,
                         borderColor: c.tabBorder,
@@ -678,7 +702,7 @@ export default function AddScreen() {
                             style={{
                               flex: 1,
                               paddingVertical: 10,
-                              borderRadius: 16,
+                              borderRadius: 22,
                               alignItems: "center",
                               justifyContent: "center",
                               flexDirection: "row",
@@ -797,7 +821,7 @@ export default function AddScreen() {
                         <TextInput
                           value={a.text ?? ""}
                           onChangeText={(t) => updateAnswer(a.id, { text: t })}
-                          placeholder="Çözümü metin olarak yaz"
+                          placeholder="Çözümü metin olarak buraya yazabilirsin."
                           placeholderTextColor={c.mutedText}
                           maxLength={200}
                           multiline
@@ -816,21 +840,37 @@ export default function AddScreen() {
                     <TextInput
                       value={a.explanation ?? ""}
                       onChangeText={(t) => updateAnswer(a.id, { explanation: t })}
-                      placeholder="Püf noktaları / not (opsiyonel)"
+                      placeholder="Sorunun cevabını görmeden hatırlamanı sağlayacak püf noktalar girebilirsin."
                       placeholderTextColor={c.mutedText}
-                      style={[styles.input, { marginTop: 12 }]}
+                      multiline
+                      numberOfLines={3}
+                      style={[
+                        styles.input,
+                        {
+                          marginTop: 12,
+                          minHeight: 90,
+                          textAlignVertical: "top", // ANDROID için kritik
+                          paddingTop: 14,
+                        },
+                      ]}
                     />
                   </View>
                 );
               })}
+              {answers.length === 1 &&
+                <View className="my-4 px-2">
+                  <Text style={{ color: c.mutedText, }}>
+                    Birden fazla çözüm eklemek istiyorsan buradan ekleyebilirsin. Maximum 3 adet çözüm ekleyebilirsin.
+                  </Text>
+                </View>}
 
               {/* Add answer */}
               <Pressable onPress={addAnswer} style={[styles.secondaryBtn, { marginBottom: 12 }]}>
-                <Plus size={18} color={c.accent} />
-                <Text style={{ color: c.text, fontWeight: "900" }}>Çözüm Ekle</Text>
+                <CheckCircle2Icon size={20} color={c.accent} />
+                <Text style={{ color: c.text, fontWeight: "700" }}>Çözüm Ekle</Text>
               </Pressable>
 
-              {/* Save */}
+
 
 
               {/* Save */}
@@ -844,13 +884,114 @@ export default function AddScreen() {
               >
                 {loading ? <ActivityIndicator /> : <Text style={styles.primaryBtnText}>Kaydet</Text>}
               </Pressable>
-
-              {/* Draft reason (why disabled) */}
+              {/* Draft reason (why disabled)
               {!!draftSaveError && (
-                <Text className="mt-2 px-3" style={{ color: c.mutedText, marginBottom: 10 }}>
-                  {draftSaveError}
-                </Text>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 12,
+                    marginBottom: 12,
+                    padding: 10,
+                    borderRadius: 18,
+                    backgroundColor: c.inputBg,
+                    borderWidth: 1,
+                    borderColor: "#FF5A6A33",
+                  }}
+                >
+
+                  <BanIcon size={16} color="#FF5A6A" />
+                  <Text style={{ color: "#FF5A6A", flex: 1, fontWeight: "600" }}>
+                    {draftSaveError}
+                  </Text>
+                </View>
+              )} */}
+
+              {/* new */}
+
+              {saveDisabled && (
+                <View
+                  style={{
+                    marginTop: 14,
+                    marginBottom: 14,
+                    padding: 14,
+                    borderRadius: 18,
+                    backgroundColor: c.inputBg,
+                    borderWidth: 1,
+                    borderColor: c.border,
+                  }}
+                >
+                  {/* Header */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text style={{ color: c.text, fontWeight: "900" }}>
+                      Kaydetmek için gerekli
+                    </Text>
+
+                    <Text style={{ color: c.mutedText, fontWeight: "800" }}>
+                      {requirements.filter(r => r.ok).length}/{requirements.length}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      height: 6,
+                      borderRadius: 999,
+                      backgroundColor: c.border,
+                      marginBottom: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${(requirements.filter(r => r.ok).length / requirements.length) * 100}%`,
+                        height: "100%",
+                        backgroundColor: "#22C55E",
+                      }}
+                    />
+                  </View>
+                  {/* Items */}
+                  {requirements.map((r) => {
+                    const isOk = r.ok;
+
+                    return (
+                      <View
+                        key={r.key}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        {isOk ? (
+                          <CheckCircle2 size={18} color="#22C55E" />
+                        ) : (
+                          <BanIcon size={18} color="#FF5A6A" />
+                        )}
+
+                        <Text
+                          style={{
+                            flex: 1,
+                            fontWeight: "600",
+                            color: isOk ? "#22C55E" : c.mutedText,
+                          }}
+                        >
+                          {r.label}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               )}
+
             </ScrollView>
           </PagerView>
         </KeyboardAvoidingView>
