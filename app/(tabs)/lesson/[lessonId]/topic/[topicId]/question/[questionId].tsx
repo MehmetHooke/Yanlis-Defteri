@@ -305,7 +305,7 @@ export default function QuestionDetailScreen() {
     const next = !showAnswers;
     setShowAnswers(next);
 
-    // içerik fazla olursa bile yeterli kalsın diye büyük bir değer
+   
     const OPEN_H =800;
 
     aHeight.value = withTiming(next ? OPEN_H : 0, { duration: 220 });
@@ -538,7 +538,8 @@ export default function QuestionDetailScreen() {
             alignItems: "center",
             justifyContent: "space-between",
           }}
-        > <View className="flex-1 flex-row gap-2">
+        > 
+        <View className="flex-1 flex-row gap-2">
             <CheckCircle2 size={18} color={"green"} />
             <Text style={{ color: c.text, fontWeight: "900" }}>
               {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
