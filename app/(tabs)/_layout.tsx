@@ -34,7 +34,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Anasayfa" }} />
       <Tabs.Screen name="questions" options={{ title: "Sorularım" }} />
-      <Tabs.Screen name="add" options={{ title: "Ekle" }} />
+      <Tabs.Screen name="add" options={{ title: "Soru Ekle" }} />
       <Tabs.Screen name="settings" options={{ title: "Ayarlar" }} />
 
       {/* gizli stack/route */}
