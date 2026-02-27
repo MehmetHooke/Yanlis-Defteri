@@ -8,13 +8,13 @@ import { router } from "expo-router";
 import { BookOpen } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    ImageBackground,
-    Pressable,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  ImageBackground,
+  Pressable,
+  Text,
+  View,
 } from "react-native";
 
 function LessonCard({
@@ -150,7 +150,7 @@ export default function QuestionsScreen() {
           <ActivityIndicator />
         </View>
       ) : items.length === 0 ? (
-        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
+        <View style={{flex:1, paddingHorizontal: 18, paddingTop: 12 }}>
           <EmptyState />
         </View>
       ) : (

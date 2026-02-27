@@ -27,6 +27,7 @@ export default function EmptyState({
           marginBottom: 12,
         }}
       >
+        
         <Inbox size={22} color={c.accent} strokeWidth={2} />
       </View>
 
