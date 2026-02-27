@@ -38,10 +38,12 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Lightbulb,
   Trash2,
@@ -242,23 +244,23 @@ function FullscreenZoomImage({
 /** ---- Types (new + legacy compatible) ---- */
 type Answer =
   | {
-      id: string;
-      kind: "choice";
-      choice?: "A" | "B" | "C" | "D" | "E";
-      explanation?: string;
-    }
+    id: string;
+    kind: "choice";
+    choice?: "A" | "B" | "C" | "D" | "E";
+    explanation?: string;
+  }
   | {
-      id: string;
-      kind: "photo";
-      image?: { url: string; path: string };
-      explanation?: string;
-    }
+    id: string;
+    kind: "photo";
+    image?: { url: string; path: string };
+    explanation?: string;
+  }
   | {
-      id: string;
-      kind: "text";
-      text?: string;
-      explanation?: string;
-    };
+    id: string;
+    kind: "text";
+    text?: string;
+    explanation?: string;
+  };
 
 type QuestionDoc = {
   id?: string;
@@ -268,8 +270,8 @@ type QuestionDoc = {
 
   // ✅ NEW (after your change)
   question?:
-    | { kind: "photo"; image: { url: string; path: string } }
-    | { kind: "text"; text: string };
+  | { kind: "photo"; image: { url: string; path: string } }
+  | { kind: "text"; text: string };
 
   // ✅ LEGACY V3 (old)
   questionImage?: { url: string; path: string };
@@ -308,6 +310,7 @@ export default function QuestionPagerScreen() {
     useLocalSearchParams<Params>();
 
   const { theme } = useTheme();
+  const c = theme.colors;
   const { alert } = useAppAlert();
 
   const [loading, setLoading] = useState(true);
@@ -315,6 +318,47 @@ export default function QuestionPagerScreen() {
   const [pageIndex, setPageIndex] = useState(0);
 
   const pagerRef = useRef<PagerView>(null);
+
+  //new 
+  // –– swipe hint için state + reanimated değerleri ––
+  const [showHint, setShowHint] = useState(false);
+  const opacity = useSharedValue(0);
+
+  const hintStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const hideHint = useCallback(async () => {
+    if (!showHint) return;
+    try {
+      await AsyncStorage.setItem("seenSwipeHint", "1");
+    } catch { }
+    opacity.value = withTiming(0, { duration: 500 });
+    setTimeout(() => setShowHint(false), 500);
+  }, [showHint]);
+
+
+  // questionIds yüklendikten sonra birden fazla soru varsa ve daha önce
+  // gösterilmemişse hint’i aç
+  useEffect(() => {
+    if (questionIds.length <= 1) return;
+
+    (async () => {
+      const seen = await AsyncStorage.getItem("seenSwipeHint");
+      if (!seen) {
+        setShowHint(true);
+        opacity.value = withTiming(1, { duration: 300 });
+      }
+    })();
+  }, [questionIds]);
+
+  // gösterildiyse belirli süre sonra kendisi kapansın
+  useEffect(() => {
+    if (!showHint) return;
+    const t = setTimeout(() => hideHint(), 1800);
+    return () => clearTimeout(t);
+  }, [showHint, hideHint]);
+
 
   const initialIndex = useMemo(() => {
     const idx = questionIds.indexOf(questionId);
@@ -418,8 +462,66 @@ export default function QuestionPagerScreen() {
     );
   }
 
+
+
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
+      {showHint && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              top: "36%",
+              left: 24,
+              right: 24,
+              alignItems: "center",
+              zIndex: 100,
+            },
+            hintStyle,
+          ]}
+        >
+          <View
+            style={{
+              borderRadius: 22,
+              paddingVertical: 16,
+              paddingHorizontal: 18,
+              backgroundColor: c.card + "D9", // hafif cam hissi
+              borderWidth: 1,
+              borderColor: c.borderStrong + "70",
+
+              shadowColor: "#000",
+              shadowOpacity: 0.25,
+              shadowRadius: 20,
+              shadowOffset: { width: 0, height: 12 },
+              elevation: 12,
+
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* Sol ok */}
+            <ChevronLeft size={20} color={c.mutedText} />
+
+            {/* Yazı */}
+            <Text
+              style={{
+                color: c.text,
+                fontSize: 14,
+                fontWeight: "900",
+                marginHorizontal: 10,
+                textAlign: "center",
+              }}
+            >
+              Sorular arasında kaydırarak geçebilirsin
+            </Text>
+
+            {/* Sağ ok */}
+            <ChevronRight size={20} color={c.mutedText} />
+          </View>
+        </Animated.View>
+      )}
       <PagerView
         ref={pagerRef}
         style={{ flex: 1 }}
@@ -427,6 +529,7 @@ export default function QuestionPagerScreen() {
         onPageSelected={(e) => {
           const idx = e.nativeEvent.position;
           setPageIndex(idx);
+          hideHint();
         }}
       >
         {questionIds.map((qid) => (
