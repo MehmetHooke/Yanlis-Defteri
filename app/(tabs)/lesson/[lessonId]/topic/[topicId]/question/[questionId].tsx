@@ -1,9 +1,12 @@
-
-// PAGER-VİEW EKRAN GÜNCELLEMESİNE GEÇMEDEN ÖNCEKİ ÇALIŞAN HALİ 21:57 27.02.2026
-
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -16,16 +19,14 @@ import {
   Text,
   View,
 } from "react-native";
+import PagerView from "react-native-pager-view";
 
 import { auth, db } from "@/src/lib/firebase";
-import { deleteQuestionCascade } from "@/src/services/question.service";
-
-// sende bu var
-import { useTheme } from "@/src/context/ThemeContext"; // sende bu var
-
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronUp, Lightbulb, Trash2 } from "lucide-react-native";
+import { deleteQuestionCascade, getTopicQuestions } from "@/src/services/question.service";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
+import { useTheme } from "@/src/context/ThemeContext";
+
 import {
   Gesture,
   GestureDetector,
@@ -36,6 +37,15 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Lightbulb,
+  Trash2,
+} from "lucide-react-native";
 
 /** Timestamp -> readable */
 function formatCreatedAt(createdAt: any) {
@@ -232,23 +242,23 @@ function FullscreenZoomImage({
 /** ---- Types (new + legacy compatible) ---- */
 type Answer =
   | {
-    id: string;
-    kind: "choice";
-    choice?: "A" | "B" | "C" | "D" | "E";
-    explanation?: string;
-  }
+      id: string;
+      kind: "choice";
+      choice?: "A" | "B" | "C" | "D" | "E";
+      explanation?: string;
+    }
   | {
-    id: string;
-    kind: "photo";
-    image?: { url: string; path: string };
-    explanation?: string;
-  }
+      id: string;
+      kind: "photo";
+      image?: { url: string; path: string };
+      explanation?: string;
+    }
   | {
-    id: string;
-    kind: "text";
-    text?: string;
-    explanation?: string;
-  };
+      id: string;
+      kind: "text";
+      text?: string;
+      explanation?: string;
+    };
 
 type QuestionDoc = {
   id?: string;
@@ -258,8 +268,8 @@ type QuestionDoc = {
 
   // ✅ NEW (after your change)
   question?:
-  | { kind: "photo"; image: { url: string; path: string } }
-  | { kind: "text"; text: string };
+    | { kind: "photo"; image: { url: string; path: string } }
+    | { kind: "text"; text: string };
 
   // ✅ LEGACY V3 (old)
   questionImage?: { url: string; path: string };
@@ -274,6 +284,9 @@ type QuestionDoc = {
   updatedAt?: any;
 };
 
+const OPEN_TOPIC_ROUTE = "/(tabs)/lesson/[lessonId]/topic/[topicId]";
+const LESSONS_ROUTE = "/(tabs)/lesson";
+
 function getQuestionImageUrl(q: QuestionDoc | null) {
   const fromNew =
     q?.question?.kind === "photo" ? q.question.image?.url : undefined;
@@ -287,16 +300,175 @@ function getQuestionText(q: QuestionDoc | null) {
   return "";
 }
 
-export default function QuestionDetailScreen() {
-  const { lessonId, topicId, questionId } = useLocalSearchParams<{
-    lessonId: string;
-    topicId: string;
-    questionId: string;
-  }>();
+/**
+ * Pager wrapper – default export.
+ */
+export default function QuestionPagerScreen() {
+  const { lessonId, topicId, questionId } =
+    useLocalSearchParams<Params>();
 
   const { theme } = useTheme();
-  const c = theme.colors;
+  const { alert } = useAppAlert();
 
+  const [loading, setLoading] = useState(true);
+  const [questionIds, setQuestionIds] = useState<string[]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const pagerRef = useRef<PagerView>(null);
+
+  const initialIndex = useMemo(() => {
+    const idx = questionIds.indexOf(questionId);
+    return idx >= 0 ? idx : 0;
+  }, [questionIds, questionId]);
+
+  const handleBack = useCallback(() => {
+    router.replace({
+      pathname: OPEN_TOPIC_ROUTE as any,
+      params: { lessonId, topicId },
+    });
+  }, [lessonId, topicId]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [handleBack]);
+
+  const fetchIds = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user || !lessonId || !topicId) return;
+
+    setLoading(true);
+    try {
+      const data = await getTopicQuestions({
+        userId: user.uid,
+        lessonId,
+        topicId,
+      });
+
+      const ids = data.map((q) => q.id).filter(Boolean);
+      setQuestionIds(ids);
+
+      const idx = ids.indexOf(questionId);
+      const nextIndex = idx >= 0 ? idx : 0;
+      setPageIndex(nextIndex);
+
+      requestAnimationFrame(() => {
+        pagerRef.current?.setPageWithoutAnimation(nextIndex);
+      });
+    } catch (e: any) {
+      console.log("Pager ids fetch error:", e);
+      alert("Hata", e?.message ?? "Sorular yüklenemedi", {
+        variant: "danger",
+      });
+      setQuestionIds([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [alert, lessonId, topicId, questionId]);
+
+  useEffect(() => {
+    fetchIds();
+  }, [fetchIds]);
+
+  const onDeleted = useCallback((deletedId: string) => {
+    setQuestionIds((prev) => {
+      const idx = prev.indexOf(deletedId);
+      if (idx < 0) return prev;
+
+      const next = prev.filter((id) => id !== deletedId);
+      if (next.length === 0) {
+        router.replace(LESSONS_ROUTE as any);
+        return next;
+      }
+
+      const nextIndex = Math.min(idx, next.length - 1);
+      setPageIndex(nextIndex);
+      requestAnimationFrame(() => {
+        pagerRef.current?.setPage(nextIndex);
+      });
+
+      return next;
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator />
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  if (questionIds.length === 0) {
+    return (
+      <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator />
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  return (
+    <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
+      <PagerView
+        ref={pagerRef}
+        style={{ flex: 1 }}
+        initialPage={initialIndex}
+        onPageSelected={(e) => {
+          const idx = e.nativeEvent.position;
+          setPageIndex(idx);
+        }}
+      >
+        {questionIds.map((qid) => (
+          <View key={qid} collapsable={false} style={{ flex: 1 }}>
+            <QuestionDetailPage
+              lessonId={lessonId}
+              topicId={topicId}
+              questionId={qid}
+              onBack={handleBack}
+              onDeleted={onDeleted}
+            />
+          </View>
+        ))}
+      </PagerView>
+    </ImageBackground>
+  );
+}
+
+type Params = {
+  lessonId: string;
+  topicId: string;
+  questionId: string;
+};
+
+/**
+ * Tek soru biçimindeki detay sayfası.
+ */
+function QuestionDetailPage({
+  lessonId,
+  topicId,
+  questionId,
+  onBack,
+  onDeleted,
+}: {
+  lessonId: string;
+  topicId: string;
+  questionId: string;
+  onBack: () => void;
+  onDeleted: (deletedId: string) => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
   const { alert, confirm } = useAppAlert();
 
   const [item, setItem] = useState<QuestionDoc | null>(null);
@@ -311,7 +483,6 @@ export default function QuestionDetailScreen() {
 
   const [showAnswers, setShowAnswers] = useState(false);
 
-  // accordion anim
   const aHeight = useSharedValue(0);
   const aOpacity = useSharedValue(0);
 
@@ -324,14 +495,16 @@ export default function QuestionDetailScreen() {
     const next = !showAnswers;
     setShowAnswers(next);
 
-
     const OPEN_H = 900;
 
     aHeight.value = withTiming(next ? OPEN_H : 0, { duration: 220 });
     aOpacity.value = withTiming(next ? 1 : 0, { duration: 180 });
   };
 
-  const createdAtText = useMemo(() => formatCreatedAt(item?.createdAt), [item?.createdAt]);
+  const createdAtText = useMemo(
+    () => formatCreatedAt(item?.createdAt),
+    [item?.createdAt]
+  );
   const answers = useMemo(() => item?.answers ?? [], [item?.answers]);
 
   const questionUri = useMemo(() => getQuestionImageUrl(item), [item]);
@@ -346,20 +519,6 @@ export default function QuestionDetailScreen() {
     return (answers ?? []).some((a) => !!a.explanation?.trim());
   }, [answers]);
 
-  const handleBack = () => {
-    router.replace({
-      pathname: "/(tabs)/lesson/[lessonId]/topic/[topicId]",
-      params: { lessonId, topicId },
-    });
-  };
-
-  useEffect(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      handleBack();
-      return true;
-    });
-    return () => sub.remove();
-  }, [lessonId, topicId]);
   useEffect(() => {
     (async () => {
       try {
@@ -379,28 +538,39 @@ export default function QuestionDetailScreen() {
         );
 
         const qSnap = await getDoc(qRef);
-        if (qSnap.exists()) {
-          setItem({ id: qSnap.id, ...(qSnap.data() as any) } as QuestionDoc);
-        } else {
-          setItem(null);
-        }
+        if (qSnap.exists())
+          setItem({ id: qSnap.id, ...(qSnap.data() as any) });
+        else setItem(null);
 
         const [lSnap, tSnap] = await Promise.all([
           getDoc(doc(db, "users", user.uid, "lessons", lessonId)),
-          getDoc(doc(db, "users", user.uid, "lessons", lessonId, "topics", topicId)),
+          getDoc(
+            doc(
+              db,
+              "users",
+              user.uid,
+              "lessons",
+              lessonId,
+              "topics",
+              topicId
+            )
+          ),
         ]);
 
-        if (lSnap.exists()) setLessonName((lSnap.data() as any)?.name ?? "Ders");
-        if (tSnap.exists()) setTopicName((tSnap.data() as any)?.name ?? "Konu");
+        if (lSnap.exists())
+          setLessonName((lSnap.data() as any)?.name ?? "Ders");
+        if (tSnap.exists())
+          setTopicName((tSnap.data() as any)?.name ?? "Konu");
       } catch (e: any) {
         console.log("Question detail fetch error:", e);
-        alert("Hata", e?.message ?? "Soru yüklenemedi", { variant: "danger" });
+        alert("Hata", e?.message ?? "Soru yüklenemedi", {
+          variant: "danger",
+        });
       } finally {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId, topicId, questionId]);
+  }, [alert, lessonId, topicId, questionId]);
 
   const doDelete = async () => {
     const user = auth.currentUser;
@@ -408,11 +578,19 @@ export default function QuestionDetailScreen() {
 
     try {
       setDeleting(true);
-      await deleteQuestionCascade({ userId: user.uid, lessonId, topicId, questionId });
-      handleBack();
+      await deleteQuestionCascade({
+        userId: user.uid,
+        lessonId,
+        topicId,
+        questionId,
+      });
+
+      onDeleted(questionId);
     } catch (e: any) {
       console.log("Silme hatası:", e);
-      alert("Hata", e?.message ?? "Silinirken bir problem oluştu.", { variant: "danger" });
+      alert("Hata", e?.message ?? "Silinirken bir problem oluştu.", {
+        variant: "danger",
+      });
     } finally {
       setDeleting(false);
     }
@@ -440,11 +618,20 @@ export default function QuestionDetailScreen() {
   if (!item) {
     return (
       <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 18 }}>
-          <Text style={{ color: c.mutedText, fontWeight: "700" }}>Soru bulunamadı.</Text>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 18,
+          }}
+        >
+          <Text style={{ color: c.mutedText, fontWeight: "700" }}>
+            Soru bulunamadı.
+          </Text>
 
           <Pressable
-            onPress={handleBack}
+            onPress={onBack}
             style={{
               marginTop: 12,
               borderRadius: 14,
@@ -460,20 +647,13 @@ export default function QuestionDetailScreen() {
     );
   }
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
       <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Pressable
-            onPress={handleBack}
+            onPress={onBack}
             style={{
               width: 42,
               height: 42,
@@ -489,17 +669,21 @@ export default function QuestionDetailScreen() {
           </Pressable>
 
           <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
+            <Text
+              style={{ color: c.text, fontSize: 18, fontWeight: "900" }}
+              numberOfLines={1}
+            >
               {lessonName} • {topicName}
             </Text>
-            <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-               {createdAtText}
+            <Text
+              style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }}
+              numberOfLines={1}
+            >
+              {createdAtText}
             </Text>
           </View>
-          {/* sağ tarafa boşluk eşitlik için */}
           <View style={{ width: 42, height: 42 }} />
         </View>
-
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 120 }}>
@@ -530,11 +714,24 @@ export default function QuestionDetailScreen() {
                 backgroundColor: c.card,
               }}
             >
-              <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
+              <Text
+                style={{
+                  color: c.mutedText,
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
                 Bu soru metin olarak kaydedilmiş
               </Text>
               {!!questionText && (
-                <Text style={{ color: c.text, marginTop: 10, lineHeight: 20, fontWeight: "700" }}>
+                <Text
+                  style={{
+                    color: c.text,
+                    marginTop: 10,
+                    lineHeight: 20,
+                    fontWeight: "700",
+                  }}
+                >
                   {questionText}
                 </Text>
               )}
@@ -542,7 +739,9 @@ export default function QuestionDetailScreen() {
           )}
         </View>
 
-        <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}>
+        <Text
+          style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}
+        >
           {questionUri ? "Tam ekran için dokunun • Yakınlaştırabilirsiniz" : ""}
         </Text>
 
@@ -571,18 +770,32 @@ export default function QuestionDetailScreen() {
               }}
             >
               <View className="flex-1 flex-row items-center gap-1">
-
-              <Lightbulb size={14} color={"yellow"} />
-              <Text style={{ color: c.text, fontWeight: "900" }}>Püf Nokta {idx + 1}</Text>
+                <Lightbulb size={14} color={"yellow"} />
+                <Text style={{ color: c.text, fontWeight: "900" }}>
+                  Püf Nokta {idx + 1}
+                </Text>
               </View>
 
               {a.explanation?.trim() ? (
                 <View>
-                  <Text style={{ color: c.text, marginTop: 10, fontWeight: "900" }}>Açıklama:</Text>
-                  <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
+                  <Text
+                    style={{
+                      color: c.text,
+                      marginTop: 10,
+                      fontWeight: "900",
+                    }}
+                  >
+                    Açıklama:
+                  </Text>
+                  <Text
+                    style={{
+                      color: c.mutedText,
+                      marginTop: 2,
+                      lineHeight: 20,
+                    }}
+                  >
                     {a.explanation}
                   </Text>
-
                 </View>
               ) : null}
             </View>
@@ -602,7 +815,6 @@ export default function QuestionDetailScreen() {
             </View>
           ) : null}
         </View>
-
 
         {/* Answers toggle */}
         <Pressable
@@ -633,8 +845,6 @@ export default function QuestionDetailScreen() {
           )}
         </Pressable>
 
-
-
         {/* Answers list */}
         <Animated.View style={[{ overflow: "hidden" }, answersAnimStyle]}>
           <View style={{ marginTop: 12, gap: 12 }}>
@@ -649,7 +859,9 @@ export default function QuestionDetailScreen() {
                   padding: 14,
                 }}
               >
-                <Text style={{ color: c.text, fontWeight: "900" }}>Çözüm {idx + 1}</Text>
+                <Text style={{ color: c.text, fontWeight: "900" }}>
+                  Çözüm {idx + 1}
+                </Text>
                 {a.kind === "text" ? (
                   <View
                     style={{
@@ -663,12 +875,13 @@ export default function QuestionDetailScreen() {
                       borderColor: c.border,
                     }}
                   >
-                    <Text style={{ color: "green", fontWeight: "900" }}>
+                    <Text
+                      style={{ color: "green", fontWeight: "900" }}
+                    >
                       Açıklama: {a.text ?? "-"}
                     </Text>
                   </View>
                 ) : null}
-
 
                 {a.kind === "choice" ? (
                   <View
@@ -683,7 +896,9 @@ export default function QuestionDetailScreen() {
                       borderColor: c.border,
                     }}
                   >
-                    <Text style={{ color: "green", fontWeight: "900" }}>
+                    <Text
+                      style={{ color: "green", fontWeight: "900" }}
+                    >
                       Doğru Şık: {a.choice ?? "-"}
                     </Text>
                   </View>
@@ -709,18 +924,33 @@ export default function QuestionDetailScreen() {
                         />
                       </Pressable>
                     ) : (
-                      <Text style={{ color: c.mutedText, marginTop: 6 }}>Fotoğraf yok</Text>
+                      <Text style={{ color: c.mutedText, marginTop: 6 }}>
+                        Fotoğraf yok
+                      </Text>
                     )}
                   </View>
                 ) : null}
 
                 {a.explanation?.trim() ? (
                   <View>
-                    <Text style={{ color: c.text, marginTop: 10, fontWeight: "900" }}>Püf Nokta</Text>
-                    <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
+                    <Text
+                      style={{
+                        color: c.text,
+                        marginTop: 10,
+                        fontWeight: "900",
+                      }}
+                    >
+                      Püf Nokta
+                    </Text>
+                    <Text
+                      style={{
+                        color: c.mutedText,
+                        marginTop: 2,
+                        lineHeight: 20,
+                      }}
+                    >
                       {a.explanation}
                     </Text>
-
                   </View>
                 ) : null}
               </View>
@@ -741,7 +971,6 @@ export default function QuestionDetailScreen() {
             ) : null}
           </View>
         </Animated.View>
-
 
         <View style={{ marginTop: 24 }}>
           <Pressable
@@ -776,7 +1005,7 @@ export default function QuestionDetailScreen() {
             style={{
               marginTop: 8,
               fontSize: 12,
-              color: "#9CA3AF", // text-muted
+              color: "#9CA3AF",
               textAlign: "center",
             }}
           >
