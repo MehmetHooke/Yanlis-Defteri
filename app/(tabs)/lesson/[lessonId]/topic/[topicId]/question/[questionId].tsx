@@ -843,7 +843,7 @@ function QuestionDetailPage({
         </View>
 
         <Text
-          style={{ color: c.mutedText, fontSize: 12, marginTop: 8 }}
+          style={{ color: c.mutedText,marginBottom:20, fontSize: 12, marginTop: 8,textAlign:"center" }}
         >
           {questionUri ? "Tam ekran için dokunun • Yakınlaştırabilirsiniz" : ""}
         </Text>
