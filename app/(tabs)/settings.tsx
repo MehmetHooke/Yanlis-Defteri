@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Animated,
     Easing,
     Image,
     ImageBackground,
+    Linking,
     Pressable,
     ScrollView,
     Text,
@@ -12,7 +13,7 @@ import {
     View
 } from "react-native";
 
-import { auth } from "@/src/lib/firebase";
+import { auth, db } from "@/src/lib/firebase";
 import {
     EmailAuthProvider,
     reauthenticateWithCredential,
@@ -24,7 +25,13 @@ import { logout } from "@/src/services/auth.service";
 import { router } from "expo-router";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
-import { ChevronDown, ChevronUp, Laptop, LogOut, Moon, Sun } from "lucide-react-native";
+import { doc, getDoc } from "firebase/firestore";
+import { ChevronDown, ChevronUp, Laptop, Lock, LogOut, Moon, Sun } from "lucide-react-native";
+
+const PLAY_URL =
+    "https://play.google.com/store/apps/details?id=com.mehmethooke.yanlisdefteri";
+const PLAY_MARKET_URL =
+    "market://details?id=com.mehmethooke.yanlisdefteri";
 
 function Section({
     title,
@@ -109,14 +116,43 @@ export default function SettingsScreen() {
     const { theme, preference, setPreference, themeLoading, effectiveTheme } = useTheme();
     const { alert, confirm } = useAppAlert();
     const user = auth.currentUser;
-    const displayName = user?.displayName || "Kullanıcı";
     const email = user?.email || "";
     const photoURL = user?.photoURL;
+    const [fullName, setFullName] = useState<string>("Kullanıcı");
+    const displayName = fullName;
 
     const [oldPass, setOldPass] = useState("");
     const [newPass, setNewPass] = useState("");
     const [newPass2, setNewPass2] = useState("");
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                if (!user) return;
+
+                const snap = await getDoc(doc(db, "users", user.uid));
+                if (!snap.exists()) return;
+
+                const data = snap.data() as any;
+                const name = `${data?.firstName ?? ""} ${data?.lastName ?? ""}`.trim();
+
+                if (!cancelled) {
+                    setFullName(name || user.displayName || "Kullanıcı");
+                }
+            } catch (e) {
+                console.log("User doc fetch error:", e);
+                if (!cancelled) setFullName(user?.displayName || "Kullanıcı");
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.uid]);
+
 
     // Accordion
     const [pwOpen, setPwOpen] = useState(false);
@@ -336,7 +372,7 @@ export default function SettingsScreen() {
                                     }}
                                 >
                                     {/* kilit ikonu istersen: lucide Lock */}
-                                    <Text style={{ color: c.accent, fontWeight: "900" }}>🔒</Text>
+                                    <Lock size={18} color={c.accent} />
                                 </View>
 
                                 <View>
@@ -437,10 +473,25 @@ export default function SettingsScreen() {
                 <Section title="DESTEK">
                     <View style={cardStyle}>
                         <Text style={{ color: c.mutedText, fontSize: 13 }}>
-                            Uygulama hoşuna gittiyse mağazada puan vererek destek olabilirsin 🙏
+                            Uygulama ile ilgili yorum yapmak ve görüş bildirmek için mağazada puan verin
                         </Text>
 
-                        <Pressable style={[buttonStyle, { marginTop: 12 }]}>
+                        <Pressable
+                            style={[buttonStyle, { marginTop: 12 }]}
+                            onPress={async () => {
+                                try {
+                                    // Önce market:// dene (Android’de direkt mağaza açılır)
+                                    const canMarket = await Linking.canOpenURL(PLAY_MARKET_URL);
+                                    if (canMarket) {
+                                        await Linking.openURL(PLAY_MARKET_URL);
+                                    } else {
+                                        await Linking.openURL(PLAY_URL);
+                                    }
+                                } catch (e) {
+                                    alert("Hata", "Mağaza açılamadı. Lütfen daha sonra tekrar deneyin.");
+                                }
+                            }}
+                        >
                             <Text style={{ color: c.buttonText, fontWeight: "800" }}>
                                 Uygulamamıza Puan Verin
                             </Text>
