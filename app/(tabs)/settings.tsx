@@ -325,7 +325,7 @@ export default function SettingsScreen() {
                                 <Image source={{ uri: photoURL }} style={{ width: 54, height: 54 }} />
                             ) : (
                                 <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                                    <Text style={{ color: c.mutedText, fontWeight: "800" }}>
+                                    <Text style={{fontSize:22, color: c.accent, fontWeight: "800" }}>
                                         {displayName?.slice(0, 1)?.toUpperCase() || "U"}
                                     </Text>
                                 </View>
