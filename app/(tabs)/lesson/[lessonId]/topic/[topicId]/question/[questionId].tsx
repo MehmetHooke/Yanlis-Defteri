@@ -20,7 +20,7 @@ import { deleteQuestionCascade } from "@/src/services/question.service";
 // sende bu var
 import { useTheme } from "@/src/context/ThemeContext"; // sende bu var
 
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronUp, Trash2 } from "lucide-react-native";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronUp, Lightbulb, Trash2 } from "lucide-react-native";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import {
@@ -467,7 +467,7 @@ export default function QuestionDetailScreen() {
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
-      <View style={{ paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10 }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Pressable
             onPress={handleBack}
@@ -487,10 +487,10 @@ export default function QuestionDetailScreen() {
 
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
-              {topicName}
+              {lessonName} • {topicName}
             </Text>
             <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-              {lessonName} • {createdAtText}
+               {createdAtText}
             </Text>
           </View>
           {/* sağ tarafa boşluk eşitlik için */}
@@ -567,7 +567,11 @@ export default function QuestionDetailScreen() {
                 padding: 14,
               }}
             >
+              <View className="flex-1 flex-row items-center gap-1">
+
+              <Lightbulb size={14} color={"yellow"} />
               <Text style={{ color: c.text, fontWeight: "900" }}>Püf Nokta {idx + 1}</Text>
+              </View>
 
               {a.explanation?.trim() ? (
                 <View>
@@ -606,7 +610,7 @@ export default function QuestionDetailScreen() {
             backgroundColor: c.card,
             borderWidth: 1,
             borderColor: c.borderStrong,
-            paddingVertical: 12,
+            paddingVertical: 15,
             paddingHorizontal: 14,
             flexDirection: "row",
             alignItems: "center",

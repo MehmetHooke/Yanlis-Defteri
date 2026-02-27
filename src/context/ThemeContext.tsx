@@ -60,7 +60,7 @@ const ACCENT = "#6D5CFF";
 
 const lightTheme: ThemeConfig = {
   name: "light",
-  bgImage: require("@/assets/images/bg-light.png"),
+  bgImage: require("@/assets/images/bg-light3.png"),
   colors: {
     background: "#F5F7FF",
     card: "#FFFFFF",
@@ -88,7 +88,7 @@ const lightTheme: ThemeConfig = {
 
 const darkTheme: ThemeConfig = {
   name: "dark",
-  bgImage: require("@/assets/images/bg-dark.png"),
+  bgImage: require("@/assets/images/bg-black1.png"),
   colors: {
     background: "#0B1020",
     card: "#121A2D",
@@ -99,7 +99,7 @@ const darkTheme: ThemeConfig = {
 
     accent: ACCENT,
 
-    border: "rgba(255,255,255,0.08)",
+    border: "rgba(255,255,255,0.09)",
     borderStrong: "rgba(255,255,255,0.12)",
 
     buttonBg: ACCENT,

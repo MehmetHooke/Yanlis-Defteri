@@ -26,7 +26,7 @@ import { router } from "expo-router";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { doc, getDoc } from "firebase/firestore";
-import { ChevronDown, ChevronUp, Laptop, Lock, LogOut, Moon, Sun } from "lucide-react-native";
+import { ChevronDown, ChevronUp, Laptop, Lock, LogOut, Moon, Settings, Sun } from "lucide-react-native";
 
 const PLAY_URL =
     "https://play.google.com/store/apps/details?id=com.mehmethooke.yanlisdefteri";
@@ -301,11 +301,30 @@ export default function SettingsScreen() {
 
     return (
         <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 26, paddingBottom: 110 }}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 60, paddingBottom: 110 }}>
                 {/* Başlık - boşluk azaltıldı */}
-                <Text style={{ fontSize: 22, fontWeight: "800", color: c.text, marginBottom: 12 }}>
-                    Ayarlar
-                </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              backgroundColor: c.tabActiveBg,
+              borderWidth: 1,
+              borderColor: c.border,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Settings size={20} color={c.accent} strokeWidth={2} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
+              Ayarlar
+            </Text>
+          </View>
+        </View>
 
                 {/* Profil */}
                 <Section title="PROFİL">

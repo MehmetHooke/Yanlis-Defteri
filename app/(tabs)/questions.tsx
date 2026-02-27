@@ -116,7 +116,7 @@ export default function QuestionsScreen() {
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
-      <View style={{ paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10 }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
             style={{

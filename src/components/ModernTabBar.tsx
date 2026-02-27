@@ -59,8 +59,8 @@ export default function ModernTabBar({
     const focusedKey = state.routes[state.index]?.key;
 
     const SPRING = {
-        damping: 26,
-        stiffness: 140,
+        damping: 80,
+        stiffness: 180,
         mass: 0.9,
         overshootClamping: true,
         restDisplacementThreshold: 0.5,

@@ -5,18 +5,19 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useRef, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import FirstOnboardingOverlay from "./FirstOnboardingOverlay";
 import { onboardingImages, onboardingLogo } from "./onboardingImages";
 
@@ -46,12 +47,12 @@ export default function OnboardingScreen() {
     const next = Math.round(x / width);
     setPage(next);
   };
+  const ONBOARDING_DONE_KEY = "onboarding_done_v1";
 
   const finish = async () => {
-    // testte her zaman onboarding’e gidiyorsun zaten, sadece nereye geçeceğini seç:
-    router.replace("/(auth)/login"); // istersen "/(auth)"
+    await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    router.replace("/"); // ✅ Index karar versin
   };
-
   const renderItem = ({ item }: { item: Item }) => {
     const isLast = item.index === lastIndex;
     const isFirst = item.index === 0;

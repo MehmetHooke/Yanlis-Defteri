@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   CheckCircle2Icon,
   Image as ImageIcon,
+  PlusCircle,
   Trash2,
   Type as TypeIcon
 } from "lucide-react-native";
@@ -524,10 +525,31 @@ export default function AddScreen() {
         >
           {/* Header */}
           <View style={styles.headerPad}>
-            <Text style={{ color: c.text, fontSize: 22, fontWeight: "900" }}>Soru Ekle</Text>
-            <Text style={{ color: c.mutedText, marginTop: 4 }}>
-              Soruyu ekle, çözümü ekle, arşivle.
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  backgroundColor: c.tabActiveBg,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <PlusCircle size={20} color={c.accent} strokeWidth={2} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
+                  Soru Ekle
+                </Text>
+                <Text style={{ marginTop: 2, color: c.mutedText, fontSize: 13 }}>
+                  Soruyu ekle, çözümü ekle, dilediğinde tekrar et.
+                </Text>
+              </View>
+            </View>
 
             {/* Segmented Tabs */}
             <View style={styles.pillWrap}>

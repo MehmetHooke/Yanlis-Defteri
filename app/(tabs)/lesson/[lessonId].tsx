@@ -15,8 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
-// Eğer AppAlertProvider kurduysan bunu aç:
-// import { useAppAlert } from "@/src/components/common/AppAlertProvider";
+
 
 function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
   const { theme } = useTheme();
@@ -71,8 +70,6 @@ export default function LessonTopicsScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  // AppAlert varsa:
-  // const { alert } = useAppAlert();
 
   const handleBack = () => {
     if (from) {
@@ -138,7 +135,7 @@ export default function LessonTopicsScreen() {
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
-      <View style={{ paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10 }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Pressable
             onPress={handleBack}
@@ -158,10 +155,10 @@ export default function LessonTopicsScreen() {
 
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
-              {lessonName}
-            </Text>
-            <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }}>
               Konular
+            </Text>
+            <Text style={{ color: c.text, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+              {lessonName} Dersi
             </Text>
           </View>
 

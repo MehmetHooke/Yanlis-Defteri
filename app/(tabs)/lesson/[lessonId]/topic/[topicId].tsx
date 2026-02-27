@@ -206,7 +206,7 @@ export default function TopicQuestionsScreen() {
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       {/* Header */}
-      <View style={{ paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10 }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Pressable
             onPress={handleBack}
@@ -226,10 +226,10 @@ export default function TopicQuestionsScreen() {
 
           <View style={{ flex: 1, alignItems: "center" }}>
             <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
-              {topicName}
+              Sorular
             </Text>
-            <Text style={{ color: c.mutedText, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-              {lessonName} • Sorular
+            <Text style={{ color: c.mutedText, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+              {lessonName} Dersi • {topicName}  
             </Text>
           </View>
 

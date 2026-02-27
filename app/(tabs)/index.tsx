@@ -294,8 +294,8 @@ export default function HomeScreen() {
                 <GridCard
                   
                   title="Soru ekle"
-                  subtitle="Fotoğraf veya metin"
-                  icon={<Plus size={18} color={c.buttonText} />}
+                  subtitle="Soru eklemek için tıkla"
+                  icon={<Plus size={18}  color={c.accent} />}
                   onPress={() =>
                     router.push({ pathname: "/(tabs)/add" })
                   }
@@ -304,8 +304,8 @@ export default function HomeScreen() {
 
               <View style={{ flex: 1 }}>
                 <GridCard
-                  title="Derslere git"
-                  subtitle="Konu listesi"
+                  title="Sorularım"
+                  subtitle="Sorularını görmek için tıkla"
                   icon={<BookOpen size={18} color={c.accent} />}
                   onPress={() =>
                     router.push({ pathname: "/(tabs)/questions" })
@@ -367,9 +367,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
   },
-  cardTitle: { fontSize: 12, fontWeight: "800" },
+  cardTitle: { fontSize: 14, fontWeight: "800",letterSpacing:0.5 },
   cardValue: { marginTop: 6, fontSize: 24, fontWeight: "900" },
-  cardSub: { marginTop: 6, fontSize: 12, fontWeight: "700" },
+  cardSub: { marginTop: 6, fontSize: 10, fontWeight: "700" },
 
   actionTitle: { fontSize: 14, fontWeight: "900" },
   actionSub: { marginTop: 6, fontSize: 12, fontWeight: "700" },

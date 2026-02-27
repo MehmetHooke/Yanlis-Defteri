@@ -37,16 +37,7 @@ export default function AuthScreen() {
 
   const { height: winH } = useWindowDimensions();
 
-  // -----------------------------
-  // Screen-level "force light" fix (only for this screen)
-  // -----------------------------
-  // Eğer ThemeContext "effectiveTheme" gibi bir alan sunmuyorsa,
-  // bu ekranda light hissini garantiye almak için küçük bir palette override ediyoruz.
-  // İstersen bunu kaldırıp ThemeContext tarafını kökten çözebiliriz.
 
-
-  // Burada istersen "c" yerine light kullanacağız.
-  // (Login ekranı özelinde açık tema istedin.)
   const ui = useTheme().theme.colors;
 
   const [activeTab, setActiveTab] = useState<TabIndex>(0);
@@ -55,9 +46,6 @@ export default function AuthScreen() {
     pagerRef.current?.setPage(idx);
   };
 
-  // -----------------------------
-  // Title animation: translateY + opacity + color (delay + >=800ms)
-  // -----------------------------
   const titleT = useSharedValue(0);
 
   useEffect(() => {
