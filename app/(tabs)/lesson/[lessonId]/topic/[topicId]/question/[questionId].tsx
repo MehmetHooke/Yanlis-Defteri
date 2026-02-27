@@ -1,3 +1,6 @@
+
+// PAGER-VİEW EKRAN GÜNCELLEMESİNE GEÇMEDEN ÖNCEKİ ÇALIŞAN HALİ 21:57 27.02.2026
+
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
