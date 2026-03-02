@@ -4,8 +4,12 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// @ts-ignore
-import { getReactNativePersistence, initializeAuth, type Auth } from "firebase/auth";
+import {
+  // @ts-ignore
+  getReactNativePersistence,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 
 // .env kullanıyorsan EXPO_PUBLIC_ ile okunur
 const firebaseConfig = {
