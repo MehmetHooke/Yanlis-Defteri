@@ -41,7 +41,6 @@ function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
       style={{
         marginBottom: 12,
         borderRadius: 18,
-        
       }}
     >
       <LinearGradient
