@@ -77,11 +77,11 @@ function QuestionRow({ item, onPress }: { item: Question; onPress: () => void })
             height: 176,
             backgroundColor: c.inputBg,
             padding: 14,
-            justifyContent: "center",
+            
           }}
         >
-          <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
-            Metin soru
+          <Text className="text-center" style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
+            Metin sorusu
           </Text>
           <Text
             style={{ color: c.text, marginTop: 8, fontSize: 13, fontWeight: "800" }}
@@ -102,7 +102,7 @@ function QuestionRow({ item, onPress }: { item: Question; onPress: () => void })
         <View style={{ marginTop: 10 }}>
           <View style={chipStyle}>
             <Text style={{ color: c.mutedText, fontSize: 11, fontWeight: "700" }}>
-              {chipLabel}
+             Soru Tipi: {chipLabel}
             </Text>
           </View>
         </View>

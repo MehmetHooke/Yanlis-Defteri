@@ -4,6 +4,7 @@ import { auth } from "@/src/lib/firebase";
 import { getUserLessons } from "@/src/services/question.service";
 import type { Lesson } from "@/src/types/lesson";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { BookOpen } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
@@ -40,34 +41,37 @@ function LessonCard({
   );
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: c.card,
-        borderWidth: 1,
-        borderColor: c.borderStrong,
-        borderRadius: 18,
-        padding: 14,
-        marginBottom: 12,
-      }}
-    >
-      <Text style={{ color: c.text, fontSize: 16, fontWeight: "700" }}>
-        {item.name}
-      </Text>
+    <Pressable onPress={onPress} style={{ borderRadius: 18, marginBottom: 12 }}>
+      <LinearGradient
+        colors={theme.lessonCard.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          borderRadius: 18,
+          padding: 14,
+          borderWidth: theme.lessonCard.edgeBorderWidth,
+          borderColor: theme.lessonCard.edgeBorderColor,
+          ...theme.lessonCard.shadow,
+        }}
+      >
+        <Text style={{ color: c.text, fontSize: 16, fontWeight: "700" }}>
+          {item.name}
+        </Text>
 
-      <View style={{ marginTop: 10, flexDirection: "row", gap: 8 }}>
-        <View style={chipStyle}>
-          <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "600" }}>
-            {item.topicCount ?? 0} konu
-          </Text>
-        </View>
+        <View style={{ marginTop: 10, flexDirection: "row", gap: 8 }}>
+          <View style={chipStyle}>
+            <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "600" }}>
+              {item.topicCount ?? 0} konu
+            </Text>
+          </View>
 
-        <View style={chipStyle}>
-          <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "600" }}>
-            {item.questionCount ?? 0} soru
-          </Text>
+          <View style={chipStyle}>
+            <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "600" }}>
+              {item.questionCount ?? 0} soru
+            </Text>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -150,7 +154,7 @@ export default function QuestionsScreen() {
           <ActivityIndicator />
         </View>
       ) : items.length === 0 ? (
-        <View style={{flex:1, paddingHorizontal: 18, paddingTop: 12 }}>
+        <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 12 }}>
           <EmptyState />
         </View>
       ) : (

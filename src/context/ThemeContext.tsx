@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { ImageSourcePropType, useColorScheme } from "react-native";
+import { ColorValue, ImageSourcePropType, useColorScheme } from "react-native";
 
 import { auth, db } from "@/src/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -15,6 +15,23 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export type ThemePreference = "system" | "light" | "dark";
 export type EffectiveTheme = "light" | "dark";
+
+type CardShadow = {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  elevation: number;
+};
+
+type LessonCardStyle = {
+  gradient: GradientColors;
+  edgeBorderWidth: number;
+  edgeBorderColor: string;
+  shadow: CardShadow;
+};
+
+type GradientColors = readonly [ColorValue, ColorValue, ...ColorValue[]];
 
 type ThemeColors = {
   // surfaces
@@ -49,6 +66,7 @@ type ThemeConfig = {
   name: EffectiveTheme;
   bgImage: ImageSourcePropType;
   colors: ThemeColors;
+  lessonCard: LessonCardStyle;
 };
 
 const THEME_KEY = "app_theme_pref_v1";
@@ -84,6 +102,18 @@ const lightTheme: ThemeConfig = {
     tabInactive: "rgba(18,22,42,0.45)",
     tabActiveBg: "rgba(109,92,255,0.14)",
   },
+  lessonCard: {
+    gradient: ["#DBD7FF", "#DBD7FF", "#F6F5FF", "#FFFFFF"] as const,
+    edgeBorderWidth: 1.2,
+    edgeBorderColor: "rgba(0,0,0,0.04)",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: 6,
+    },
+  },
 };
 
 const darkTheme: ThemeConfig = {
@@ -111,6 +141,19 @@ const darkTheme: ThemeConfig = {
     tabActive: ACCENT,
     tabInactive: "rgba(234,240,255,0.55)",
     tabActiveBg: "rgba(109,92,255,0.18)",
+
+  },
+  lessonCard: {
+    gradient: ["#0A0F1F", "#0F172E", "#141E3E", "#18143E"] as const,
+    edgeBorderWidth: 1.2,
+    edgeBorderColor: "rgba(255,255,255,0.09)",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.45,
+      shadowRadius: 14,
+      elevation: 8,
+    },
   },
 };
 

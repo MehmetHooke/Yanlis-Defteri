@@ -3,6 +3,7 @@ import { auth, db } from "@/src/lib/firebase";
 import { getLessonTopics } from "@/src/services/question.service";
 import type { Topic } from "@/src/types/topic";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import { ChevronLeft } from "lucide-react-native";
@@ -40,12 +41,21 @@ function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
       style={{
         marginBottom: 12,
         borderRadius: 18,
-        backgroundColor: c.card,
-        borderWidth: 1,
-        borderColor: c.borderStrong,
-        padding: 14,
+        
       }}
     >
+      <LinearGradient
+        colors={theme.lessonCard.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          borderRadius: 18,
+          padding: 14,
+          borderWidth: theme.lessonCard.edgeBorderWidth,
+          borderColor: theme.lessonCard.edgeBorderColor,
+          ...theme.lessonCard.shadow,
+        }}
+      >
       <Text style={{ color: c.text, fontSize: 16, fontWeight: "800" }}>
         {item.name}
       </Text>
@@ -57,6 +67,7 @@ function TopicCard({ item, onPress }: { item: Topic; onPress: () => void }) {
           </Text>
         </View>
       </View>
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -126,7 +137,7 @@ export default function LessonTopicsScreen() {
 
   if (loading) {
     return (
-      <View  style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: c.background, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator />
       </View>
     );
