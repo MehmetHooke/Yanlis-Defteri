@@ -44,7 +44,7 @@ function lessonsCol(userId: string) {
   return collection(db, "users", userId, "lessons");
 }
 
-function lessonDoc(userId: string, lessonId: string) {
+export function lessonDoc(userId: string, lessonId: string) {
   return doc(db, "users", userId, "lessons", lessonId);
 }
 
@@ -52,7 +52,7 @@ function topicsCol(userId: string, lessonId: string) {
   return collection(db, "users", userId, "lessons", lessonId, "topics");
 }
 
-function topicDoc(userId: string, lessonId: string, topicId: string) {
+export function topicDoc(userId: string, lessonId: string, topicId: string) {
   return doc(db, "users", userId, "lessons", lessonId, "topics", topicId);
 }
 
@@ -86,6 +86,45 @@ function questionDoc(
     "questions",
     questionId,
   );
+}
+
+export async function topicHasAnyQuestion(
+  userId: string,
+  lessonId: string,
+  topicId: string,
+) {
+  const ref = collection(
+    db,
+    "users",
+    userId,
+    "lessons",
+    lessonId,
+    "topics",
+    topicId,
+    "questions",
+  );
+  const snap = await getDocs(query(ref, limit(1)));
+  return !snap.empty;
+}
+
+export async function lessonHasAnyQuestion(userId: string, lessonId: string) {
+  // Lesson altındaki tüm topic’lere bak, herhangi birinde question varsa true.
+  const topicsRef = collection(
+    db,
+    "users",
+    userId,
+    "lessons",
+    lessonId,
+    "topics",
+  );
+  const topicsSnap = await getDocs(topicsRef);
+
+  for (const topicDoc of topicsSnap.docs) {
+    const tId = topicDoc.id;
+    const has = await topicHasAnyQuestion(userId, lessonId, tId);
+    if (has) return true; // ✅ ilk bulduğunda çık
+  }
+  return false;
 }
 
 async function uploadImageUri(userId: string, uri: string, folder: string) {
@@ -460,6 +499,30 @@ export async function deleteQuestionCascade(params: {
     updatedAt: serverTimestamp(),
   });
   await batch.commit();
+
+  // ✅ attempts cleanup (best effort)
+  try {
+    const attemptsQ = query(
+      collection(db, "users", userId, "attempts"),
+      where("questionId", "==", questionId),
+      limit(450),
+    );
+
+    // büyükse parça parça sil
+    while (true) {
+      const snap = await getDocs(attemptsQ);
+      if (snap.empty) break;
+
+      const b = writeBatch(db);
+      snap.docs.forEach((d) => b.delete(d.ref));
+      await b.commit();
+
+      // 450'dan fazla varsa döngü devam eder
+      if (snap.size < 450) break;
+    }
+  } catch (e) {
+    console.log("Attempts cleanup failed:", e);
+  }
 
   // ✅ storage delete (best effort)
   for (const p of pathsToDelete) {

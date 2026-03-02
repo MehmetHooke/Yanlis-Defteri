@@ -22,7 +22,7 @@ import {
 import PagerView from "react-native-pager-view";
 
 import { auth, db } from "@/src/lib/firebase";
-import { deleteQuestionCascade, getTopicQuestions } from "@/src/services/question.service";
+import { deleteQuestionCascade, getTopicQuestions, getUserLessons, lessonDoc, topicDoc } from "@/src/services/question.service";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -38,6 +38,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import EmptyState from "@/src/components/EmptyState";
+import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CheckCircle2,
@@ -47,6 +49,7 @@ import {
   ChevronUp,
   Lightbulb,
   Trash2,
+  XCircle,
 } from "lucide-react-native";
 
 /** Timestamp -> readable */
@@ -289,6 +292,7 @@ type QuestionDoc = {
 const OPEN_TOPIC_ROUTE = "/(tabs)/lesson/[lessonId]/topic/[topicId]";
 const LESSONS_ROUTE = "/(tabs)/lesson";
 
+
 function getQuestionImageUrl(q: QuestionDoc | null) {
   const fromNew =
     q?.question?.kind === "photo" ? q.question.image?.url : undefined;
@@ -318,6 +322,8 @@ export default function QuestionPagerScreen() {
   const [pageIndex, setPageIndex] = useState(0);
 
   const pagerRef = useRef<PagerView>(null);
+
+
 
   //new 
   // –– swipe hint için state + reanimated değerleri ––
@@ -450,14 +456,10 @@ export default function QuestionPagerScreen() {
     );
   }
 
-  if (questionIds.length === 0) {
+  if (!loading && questionIds.length === 0) {
     return (
       <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
-          <ActivityIndicator />
-        </View>
+        <EmptyState title="Burada soru yok" subtitle="Yeni soru ekleyebilirsin." />
       </ImageBackground>
     );
   }
@@ -630,6 +632,7 @@ function QuestionDetailPage({
 
   const questionUri = useMemo(() => getQuestionImageUrl(item), [item]);
   const questionText = useMemo(() => getQuestionText(item), [item]);
+  const [marking, setMarking] = useState<null | "solved" | "unsolved">(null);
 
   const openViewer = (uri: string) => {
     setViewerUri(uri);
@@ -700,6 +703,7 @@ function QuestionDetailPage({
 
     try {
       setDeleting(true);
+
       await deleteQuestionCascade({
         userId: user.uid,
         lessonId,
@@ -708,6 +712,34 @@ function QuestionDetailPage({
       });
 
       onDeleted(questionId);
+
+      // 1) Topic hâlâ duruyor mu? (yani topic altında başka soru var)
+      const tSnap = await getDoc(topicDoc(user.uid, lessonId, topicId));
+      if (tSnap.exists()) {
+        router.replace({
+          pathname: "/(tabs)/lesson/[lessonId]/topic/[topicId]",
+          params: { lessonId, topicId },
+        } as any);
+        return;
+      }
+
+      // 2) Topic silinmiş. Lesson hâlâ duruyor mu? (lesson altında başka topic/soru var)
+      const lSnap = await getDoc(lessonDoc(user.uid, lessonId));
+      if (lSnap.exists()) {
+        router.replace({
+          pathname: "/(tabs)/lesson/[lessonId]",
+          params: { lessonId },
+        } as any);
+        return;
+      }
+
+      // 3) Lesson da silinmiş. Kullanıcının başka lesson'ı var mı?
+      // Varsa /questions'a dön (tab zaten aktif; stack root'a dönmüş olur).
+      const lessons = await getUserLessons(user.uid);
+
+      // İster 0 ister >0 olsun bence en tutarlı UX: /questions'a dönüp liste/emptystate göster.
+      // Ama sen istersen 0'da /(tabs) yapabilirsin.
+      router.replace("/questions");
     } catch (e: any) {
       console.log("Silme hatası:", e);
       alert("Hata", e?.message ?? "Silinirken bir problem oluştu.", {
@@ -733,6 +765,7 @@ function QuestionDetailPage({
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator />
+
       </View>
     );
   }
@@ -897,57 +930,57 @@ function QuestionDetailPage({
             )}
           </Pressable>
         )}
-        
-          {showHints && (
-            <View style={{ gap: 12, marginTop: 12 }}>
-              {answers.map((a, idx) => (
-                <View
-                  key={a.id ?? String(idx)}
-                  style={{
-                    borderRadius: 18,
-                    backgroundColor: c.card,
-                    borderWidth: 1,
-                    borderColor: c.borderStrong,
-                    padding: 14,
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Lightbulb size={14} color={"#EDB230"} />
-                    <Text style={{ color: c.text, fontWeight: "900" }}>
-                      Püf Nokta {idx + 1}
+
+        {showHints && (
+          <View style={{ gap: 12, marginTop: 12 }}>
+            {answers.map((a, idx) => (
+              <View
+                key={a.id ?? String(idx)}
+                style={{
+                  borderRadius: 18,
+                  backgroundColor: c.card,
+                  borderWidth: 1,
+                  borderColor: c.borderStrong,
+                  padding: 14,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Lightbulb size={14} color={"#EDB230"} />
+                  <Text style={{ color: c.text, fontWeight: "900" }}>
+                    Püf Nokta {idx + 1}
+                  </Text>
+                </View>
+
+                {a.explanation?.trim() ? (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={{ color: c.text, fontWeight: "900" }}>Açıklama:</Text>
+                    <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
+                      {a.explanation}
                     </Text>
                   </View>
+                ) : (
+                  <Text style={{ color: c.mutedText, marginTop: 10 }}>
+                    Açıklama yok.
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+        {answers.length === 0 ? (
+          <View
+            style={{
+              borderRadius: 18,
+              backgroundColor: c.card,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
+              padding: 14,
+            }}
+          >
+            <Text style={{ color: c.mutedText }}>Cevap bulunamadı.</Text>
+          </View>
+        ) : null}
 
-                  {a.explanation?.trim() ? (
-                    <View style={{ marginTop: 10 }}>
-                      <Text style={{ color: c.text, fontWeight: "900" }}>Açıklama:</Text>
-                      <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
-                        {a.explanation}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={{ color: c.mutedText, marginTop: 10 }}>
-                      Açıklama yok.
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-          {answers.length === 0 ? (
-            <View
-              style={{
-                borderRadius: 18,
-                backgroundColor: c.card,
-                borderWidth: 1,
-                borderColor: c.borderStrong,
-                padding: 14,
-              }}
-            >
-              <Text style={{ color: c.mutedText }}>Cevap bulunamadı.</Text>
-            </View>
-          ) : null}
-        
 
         {/* Answers toggle */}
         <Pressable
@@ -1104,6 +1137,124 @@ function QuestionDetailPage({
             ) : null}
           </View>
         </Animated.View>
+
+        {/* çözdüm çözemedim için yeni butonlar ve özellikler. */}
+        {/* ✅ SOLVED / UNSOLVED row */}
+        <View style={{ marginTop: 18 }}>
+          <Text style={{ color: c.mutedText, marginBottom: 8 }}>
+            Soruyu çözdün mü ?
+          </Text>
+
+          <View style={{ flexDirection: "row" }}>
+            {/* SOLVED */}
+            <Pressable
+              onPress={async () => {
+                if (marking) return;
+                try {
+                  setMarking("solved");
+                  await addAttemptAndUpdateQuestion({
+                    lessonId,
+                    topicId,
+                    questionId,
+                    result: "solved",
+                    hintViewed,
+                    answerViewed,
+                    source: "normal",
+                  });
+                  alert("Kaydedildi", "Çözdüm olarak Kaydedildi.", { variant: "success" });
+                } catch (e: any) {
+                  alert("Hata", e?.message ?? "Kaydedilemedi", { variant: "danger" });
+                } finally {
+                  setMarking(null);
+                }
+              }}
+              disabled={!!marking}
+              android_ripple={{ color: "rgba(34,197,94,0.18)" }}
+              style={{
+                flex: 1,
+                marginRight: 10,
+                minHeight: 48,
+                borderRadius: 16,
+                backgroundColor: "rgba(34,197,94,0.12)",
+                borderWidth: 1,
+                borderColor: "rgba(34,197,94,0.55)",
+                opacity: marking ? 0.7 : 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <CheckCircle2 size={18} color="rgba(34,197,94,0.95)" />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: "rgba(34,197,94,1)",
+                  }}
+                >
+                  Çözdüm
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* UNSOLVED */}
+            <Pressable
+              onPress={async () => {
+                if (marking) return;
+                try {
+                  setMarking("unsolved");
+                  await addAttemptAndUpdateQuestion({
+                    lessonId,
+                    topicId,
+                    questionId,
+                    result: "unsolved",
+                    hintViewed,
+                    answerViewed,
+                    source: "normal",
+                  });
+                  alert("Kaydedildi", "Çözemedim olarak kaydedildi.", { variant: "success" });
+                } catch (e: any) {
+                  alert("Hata", e?.message ?? "Kaydedilemedi", { variant: "danger" });
+                } finally {
+                  setMarking(null);
+                }
+              }}
+              disabled={!!marking}
+              android_ripple={{ color: "rgba(239,68,68,0.18)" }}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                borderRadius: 16,
+                backgroundColor: "rgba(239,68,68,0.18)",
+                borderWidth: 1,
+                borderColor: "rgba(239,68,68,0.55)",
+                opacity: marking ? 0.7 : 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <XCircle size={18} color="rgba(239,68,68,0.95)" />
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: "rgba(239,68,68,0.95)",
+                  }}
+                >
+                  Çözemedim
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+
+          <Text style={{ marginTop: 8, fontSize: 12, color: c.mutedText, textAlign: "center" }}>
+            İşaretlediğinde analizler için kaydedilir.
+          </Text>
+        </View>
+
 
         <View style={{ marginTop: 24 }}>
           <Pressable
