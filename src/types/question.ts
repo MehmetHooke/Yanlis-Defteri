@@ -37,16 +37,21 @@ export type Question = {
   lessonId: string;
   topicId: string;
 
-  // ✅ NEW (primary)
   question?: QuestionV3Question;
 
-  // ✅ LEGACY V3 (older data)
   questionImage?: { url: string; path: string };
   answers?: Answer[];
 
-  // ✅ LEGACY V2 (fallback)
   imageUrl?: string;
   imagePath?: string;
+
+  // ✅ NEW (metrics)
+  solvedCount?: number;
+  unsolvedCount?: number;
+  lastResult?: "solved" | "unsolved";
+  lastAttemptAt?: any;
+  lastHintViewed?: boolean;
+  lastAnswerViewed?: boolean;
 
   createdAt?: any;
   updatedAt?: any;
