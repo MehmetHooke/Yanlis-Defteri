@@ -586,6 +586,14 @@ function QuestionDetailPage({
 
   const [showAnswers, setShowAnswers] = useState(false);
 
+  //yeni özellik için püf nokta accordion ve çözüm açılıp açılmadığı state 
+  // ✅ Hint accordion
+  const [showHints, setShowHints] = useState(false);
+  const [hintViewed, setHintViewed] = useState(false);
+
+  // ✅ Answer viewed (senin showAnswers zaten var)
+  const [answerViewed, setAnswerViewed] = useState(false);
+
   const aHeight = useSharedValue(0);
   const aOpacity = useSharedValue(0);
 
@@ -594,12 +602,22 @@ function QuestionDetailPage({
     opacity: aOpacity.value,
   }));
 
+  //püf nokta için accordion 
+  const toggleHints = () => {
+    setShowHints((prev) => {
+      const next = !prev;
+      if (next) setHintViewed(true);
+      return next;
+    });
+  };
+
   const toggleAnswers = () => {
     const next = !showAnswers;
     setShowAnswers(next);
 
-    const OPEN_H = 900;
+    if (next) setAnswerViewed(true);
 
+    const OPEN_H = 900;
     aHeight.value = withTiming(next ? OPEN_H : 0, { duration: 220 });
     aOpacity.value = withTiming(next ? 1 : 0, { duration: 180 });
   };
@@ -618,8 +636,9 @@ function QuestionDetailPage({
     setViewerOpen(true);
   };
 
-  const hasAnyExplanation = useMemo(() => {
-    return (answers ?? []).some((a) => !!a.explanation?.trim());
+  const hasHints = useMemo(() => {
+    // Püf noktaları bölümü: explanation olanlar varsa anlamlı, ama yoksa da “Açıklama yok” diyebiliriz.
+    return (answers ?? []).length > 0;
   }, [answers]);
 
   useEffect(() => {
@@ -843,67 +862,78 @@ function QuestionDetailPage({
         </View>
 
         <Text
-          style={{ color: c.mutedText,marginBottom:20, fontSize: 12, marginTop: 8,textAlign:"center" }}
+          style={{ color: c.mutedText, marginBottom: 20, fontSize: 12, marginTop: 8, textAlign: "center" }}
         >
           {questionUri ? "Tam ekran için dokunun • Yakınlaştırabilirsiniz" : ""}
         </Text>
 
-        {hasAnyExplanation && (
-          <Text
+        {hasHints && (
+          <Pressable
+            onPress={toggleHints}
             style={{
-              color: c.mutedText,
-              fontSize: 12,
               marginTop: 8,
-              marginBottom: 10,
+              borderRadius: 16,
+              backgroundColor: c.card,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
+              paddingVertical: 14,
+              paddingHorizontal: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
-            Soruyu çözmek için eklediğiniz püf noktalarına bakabilirsiniz 👇
-          </Text>
-        )}
-        <View style={{ gap: 12 }}>
-          {answers.map((a, idx) => (
-            <View
-              key={a.id ?? String(idx)}
-              style={{
-                borderRadius: 18,
-                backgroundColor: c.card,
-                borderWidth: 1,
-                borderColor: c.borderStrong,
-                padding: 14,
-              }}
-            >
-              <View className="flex-1 flex-row items-center gap-1">
-                <Lightbulb size={14} color={"#EDB230"} />
-                <Text style={{ color: c.text, fontWeight: "900" }}>
-                  Püf Nokta {idx + 1}
-                </Text>
-              </View>
-
-              {a.explanation?.trim() ? (
-                <View>
-                  <Text
-                    style={{
-                      color: c.text,
-                      marginTop: 10,
-                      fontWeight: "900",
-                    }}
-                  >
-                    Açıklama:
-                  </Text>
-                  <Text
-                    style={{
-                      color: c.mutedText,
-                      marginTop: 2,
-                      lineHeight: 20,
-                    }}
-                  >
-                    {a.explanation}
-                  </Text>
-                </View>
-              ) : null}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Lightbulb size={18} color={"#EDB230"} />
+              <Text style={{ color: c.text, fontWeight: "900" }}>
+                {showHints ? "Püf Noktaları Gizle" : "Püf Noktalarını Göster"}
+              </Text>
             </View>
-          ))}
 
+            {showHints ? (
+              <ChevronUp size={18} color={c.mutedText} />
+            ) : (
+              <ChevronDown size={18} color={c.mutedText} />
+            )}
+          </Pressable>
+        )}
+        
+          {showHints && (
+            <View style={{ gap: 12, marginTop: 12 }}>
+              {answers.map((a, idx) => (
+                <View
+                  key={a.id ?? String(idx)}
+                  style={{
+                    borderRadius: 18,
+                    backgroundColor: c.card,
+                    borderWidth: 1,
+                    borderColor: c.borderStrong,
+                    padding: 14,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Lightbulb size={14} color={"#EDB230"} />
+                    <Text style={{ color: c.text, fontWeight: "900" }}>
+                      Püf Nokta {idx + 1}
+                    </Text>
+                  </View>
+
+                  {a.explanation?.trim() ? (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ color: c.text, fontWeight: "900" }}>Açıklama:</Text>
+                      <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
+                        {a.explanation}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={{ color: c.mutedText, marginTop: 10 }}>
+                      Açıklama yok.
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
           {answers.length === 0 ? (
             <View
               style={{
@@ -917,7 +947,7 @@ function QuestionDetailPage({
               <Text style={{ color: c.mutedText }}>Cevap bulunamadı.</Text>
             </View>
           ) : null}
-        </View>
+        
 
         {/* Answers toggle */}
         <Pressable
