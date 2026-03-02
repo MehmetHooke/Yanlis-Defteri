@@ -103,7 +103,7 @@ const lightTheme: ThemeConfig = {
     tabActiveBg: "rgba(109,92,255,0.14)",
   },
   lessonCard: {
-    gradient: ["#DBD7FF", "#DBD7FF", "#F6F5FF", "#FFFFFF"] as const,
+    gradient: ["#D6D8FF", "#E1E2FF", "#F5F6FF", "#FFFFFF"] as const,
     edgeBorderWidth: 1.2,
     edgeBorderColor: "rgba(0,0,0,0.04)",
     shadow: {
