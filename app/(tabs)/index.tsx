@@ -17,7 +17,7 @@ import { auth } from "@/src/lib/firebase";
 import { getUserLessons } from "@/src/services/question.service";
 import type { Lesson } from "@/src/types/lesson";
 
-import { BookOpen, Layers, Plus } from "lucide-react-native";
+import { BookOpen, BookOpenCheck, Layers, Plus } from "lucide-react-native";
 
 /**
  * ✅ Route'lar
@@ -281,6 +281,8 @@ export default function HomeScreen() {
                 icon={<BookOpen size={18} color={c.accent} />}
               />
             </View>
+
+
           </View>
 
           {/* QUICK ACCESS */}
@@ -292,10 +294,10 @@ export default function HomeScreen() {
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCard
-                  
+
                   title="Soru ekle"
                   subtitle="Soru eklemek için tıkla"
-                  icon={<Plus size={18}  color={c.accent} />}
+                  icon={<Plus size={18} color={c.accent} />}
                   onPress={() =>
                     router.push({ pathname: "/(tabs)/add" })
                   }
@@ -313,6 +315,19 @@ export default function HomeScreen() {
                 />
               </View>
             </View>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+              <View style={{ flex: 1 }}>
+                <GridCard
+                  title="Test Yap"
+                  subtitle="Zayıf noktalarını hızlıca toparla"
+                  icon={<BookOpenCheck size={18} color={c.accent} />}
+                  onPress={() => router.push({ pathname: "/(tabs)/test" })}
+                />
+              </View>
+                  <View style={{ flex: 1 }}></View>
+            </View>
+
+
           </View>
 
           {/* Loading overlay (opsiyonel) */}
@@ -367,7 +382,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
   },
-  cardTitle: { fontSize: 14, fontWeight: "800",letterSpacing:0.5 },
+  cardTitle: { fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
   cardValue: { marginTop: 6, fontSize: 24, fontWeight: "900" },
   cardSub: { marginTop: 6, fontSize: 10, fontWeight: "700" },
 

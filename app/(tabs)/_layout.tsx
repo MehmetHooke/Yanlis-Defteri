@@ -41,7 +41,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="lesson"
         options={{
-          
+
+          tabBarButton: () => null,     // 🔥 asıl garanti bu
+          tabBarItemStyle: { display: "none" }, // ekstra garanti
+        }}
+      />
+
+      <Tabs.Screen
+        name="test"
+        options={{
+
           tabBarButton: () => null,     // 🔥 asıl garanti bu
           tabBarItemStyle: { display: "none" }, // ekstra garanti
         }}

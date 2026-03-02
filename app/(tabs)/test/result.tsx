@@ -24,7 +24,7 @@ export default function TestResultScreen() {
           Test Bitti 🎉
         </Text>
         <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-          {mode === "mod1" ? "Mod 1 — Zayıf Nokta" : "Test"}
+          {mode === "mod1" ? "Zayıf Nokta Sınavını bitirdiniz" : "Test"}
         </Text>
 
         <View
@@ -46,7 +46,7 @@ export default function TestResultScreen() {
           </Text>
 
           <Text style={{ color: c.mutedText, marginTop: 10 }}>
-            Öneri: Yarın tekrar Mod1 yap — aynı konu 2–3 gün üst üste hızla yükselir.
+            Buradaki sorular çözemediğiniz sorulara göre sürekli olarak şekillenir.Düzenli olarak çözmek eksiğinizi kapatmanıza yarar.
           </Text>
         </View>
 
