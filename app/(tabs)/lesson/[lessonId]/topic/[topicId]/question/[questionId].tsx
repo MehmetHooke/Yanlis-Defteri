@@ -873,7 +873,7 @@ function QuestionDetailPage({
               }}
             >
               <View className="flex-1 flex-row items-center gap-1">
-                <Lightbulb size={14} color={"yellow"} />
+                <Lightbulb size={14} color={"#EDB230"} />
                 <Text style={{ color: c.text, fontWeight: "900" }}>
                   Püf Nokta {idx + 1}
                 </Text>
