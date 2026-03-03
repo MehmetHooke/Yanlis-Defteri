@@ -39,7 +39,7 @@ function LessonCard({
     }),
     [c]
   );
-
+//soru değiştirme özelliği getirilecek !
   return (
     <Pressable onPress={onPress} style={{ borderRadius: 18, marginBottom: 12 }}>
       <LinearGradient
