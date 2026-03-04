@@ -133,27 +133,27 @@ export default function TestSelectScreen() {
           Test Yap
         </Text>
         <Text style={{ color: c.mutedText, marginTop: 4, fontWeight: "700" }}>
-          İhtiyacına göre bir mod seç.
+          İhtiyacına göre bir test seç.
         </Text>
       </View>
 
       <View style={{ paddingHorizontal: 18, paddingTop: 8 }}>
         <ModeCard
-          title="Mod 1 — Zayıf Nokta Testi"
+          title="Zayıf Nokta Testi"
           desc="En çok ‘çözemedim’ aldığın sorulardan 5 soru."
           icon={<Brain size={18} color={c.accent} />}
           onPress={() => router.push("/(test)/mod1")}
         />
 
         <ModeCard
-          title="Mod 2 — Karma Tekrar"
-          desc="2 zayıf + 2 orta + 1 güçlü (moral + toparlama)."
+          title="Karma Tekrar"
+          desc="Karma sorular ile motivasyonunu toparla"
           icon={<Shuffle size={18} color={c.accent} />}
           disabled
         />
 
         <ModeCard
-          title="Mod 3 — Kalıcılık Kontrolü"
+          title="Kalıcılık Kontrolü"
           desc="Uzun süredir bakmadığın ‘çözdüm’ soruları."
           icon={<Timer size={18} color={c.accent} />}
           disabled

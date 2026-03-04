@@ -53,7 +53,8 @@ type ThemeColors = {
   // buttons
   buttonBg: string;
   buttonText: string;
-
+  testButtonBackgroundGreen: string;
+  testButtonTextColorGreen: string;
   // tabbar (modern)
   tabBg: string;          // blur altına hafif renk
   tabBorder: string;
@@ -95,6 +96,10 @@ const lightTheme: ThemeConfig = {
     buttonBg: ACCENT,
     buttonText: "#FFFFFF",
 
+    testButtonTextColorGreen: "rgba(9, 140, 53,1)",//açık tema için düzenlicek
+    testButtonBackgroundGreen: "rgba(9,197,3,0.12)",
+
+
     // tabbar: açık temada pill daha açık, text daha koyu
     tabBg: "rgba(255,255,255,0.72)",
     tabBorder: "rgba(0,0,0,0.08)",
@@ -135,6 +140,9 @@ const darkTheme: ThemeConfig = {
     buttonBg: ACCENT,
     buttonText: "#FFFFFF",
 
+
+    testButtonTextColorGreen: "rgba(34,197,94,1)",
+    testButtonBackgroundGreen: "rgba(34,197,94,0.12)",
     // tabbar: koyu temada pill daha koyu/şeffaf
     tabBg: "rgba(10,12,16,0.70)",
     tabBorder: "rgba(255,255,255,0.10)",

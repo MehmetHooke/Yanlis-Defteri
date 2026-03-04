@@ -1,5 +1,6 @@
 // app/(tabs)/test/mod1.tsx
-import FullscreenZoomImage from "@/components/FullscreenZoomImage";
+import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
+import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
@@ -121,10 +122,10 @@ export default function TestMod1Screen() {
             <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
                 <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 18 }}>
                     <Text style={{ color: c.text, fontWeight: "900", fontSize: 16, textAlign: "center" }}>
-                        Mod1 için yeterli soru bulunamadı.
+                        "Zayıf Nokta Testi" için yeterli soru bulunamadı.
                     </Text>
                     <Text style={{ color: c.mutedText, marginTop: 8, textAlign: "center" }}>
-                        Birkaç soru ekleyip deneme kaydı (çözdüm/çözemedim) oluşturduktan sonra tekrar dene.
+                        Bu sınav en çok çözemediğin soruları öne çıkarıyor karışık olarak, yeteri kadar çözemediğin soru olduğunda en az 5 adet olmak üzere sınavı artık kullanabilirsin.
                     </Text>
 
                     <Pressable
@@ -147,9 +148,11 @@ export default function TestMod1Screen() {
     return (
         <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
             {/* Header */}
-            <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 10 }}>
+            <View style={{ paddingTop: 60, paddingHorizontal: 18, paddingBottom: 15 }}>
                 <Text className="text-center" style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>Zayıf Nokta Testi</Text>
-                <Text className="text-center" style={{ color: c.text, marginTop: 4, fontWeight: "700" }}> Soru {progressText}</Text>
+                <View style={{ marginTop: 8 }}>
+                    <TestProgressPill index={i} total={questions.length} color={"green"} />
+                </View>
             </View>
 
             <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24 }}>
@@ -192,7 +195,7 @@ export default function TestMod1Screen() {
                             marginRight: 10,
                             minHeight: 48,
                             borderRadius: 16,
-                            backgroundColor: "rgba(34,197,94,0.12)",
+                            backgroundColor: c.testButtonBackgroundGreen,
                             borderWidth: 1,
                             borderColor: "rgba(34,197,94,0.55)",
 
@@ -201,13 +204,13 @@ export default function TestMod1Screen() {
                         }}
                     >
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <CheckCircle2 size={18} color="rgba(34,197,94,0.95)" />
+                            <CheckCircle2 size={18} color={c.testButtonTextColorGreen} />
                             <Text
                                 style={{
                                     marginLeft: 8,
                                     fontSize: 15,
                                     fontWeight: "800",
-                                    color: "rgba(34,197,94,1)",
+                                    color: c.testButtonTextColorGreen,
                                 }}
                             >
                                 Çözdüm
