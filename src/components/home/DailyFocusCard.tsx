@@ -99,7 +99,7 @@ export default function DailyFocusCard() {
 
         if (card.ctaMode === "mod3") {
             return {
-                label: "Kalıcılık Kontrolü",
+                label: "Kalıcılık Kontrolü Testi Öneriliyor",
                 onPress: () =>
                     router.push({
                         pathname: "/(test)/mod3" as any,
