@@ -156,7 +156,7 @@ export default function TestSelectScreen() {
           title="Kalıcılık Kontrolü"
           desc="Uzun süredir bakmadığın ‘çözdüm’ soruları."
           icon={<Timer size={18} color={c.accent} />}
-          disabled
+          onPress={()=>{router.push("/(test)/mod3")}}
         />
       </View>
     </ImageBackground>

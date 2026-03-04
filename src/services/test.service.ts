@@ -233,3 +233,113 @@ export async function getMod2MixedQuestions(params: {
   // 6) ekranda karışık gelsin
   return shuffle(selected);
 }
+
+// --------------------- / MOD 3 / -------------------------------
+
+function toDateSafe(ts: any): Date | null {
+  if (!ts) return null;
+  // Firestore Timestamp
+  if (typeof ts?.toDate === "function") return ts.toDate();
+  // already Date-like
+  if (ts instanceof Date) return ts;
+  // string/number?
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function daysSince(d: Date) {
+  const ms = Date.now() - d.getTime();
+  return ms / (1000 * 60 * 60 * 24);
+}
+
+/**
+ * Mod3 (Kalıcılık Kontrolü) - ÖNERİLEN MVP:
+ * - Öncelik: daha önce "solved" işaretlenmiş VE üzerinden X gün geçmiş sorular
+ * - Sırala: daha eski lastAttemptAt > solvedCount yüksek
+ * - Yetmezse: attempt görmüş diğer sorulardan tamamla
+ */
+export async function getMod3RetentionQuestions(params: {
+  take?: number;
+  poolLimit?: number;
+  minDays?: number; // solved sorularda aradan kaç gün geçmiş olmalı
+}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const take = params.take ?? 5;
+  const poolLimit = params.poolLimit ?? 200;
+  const minDays = params.minDays ?? 7; // <- bunu cevabına göre değiştireceğiz
+
+  // 1) lessons
+  const lSnap = await getDocs(
+    query(lessonsCol(user.uid), orderBy("lastActivityAt", "desc")),
+  );
+  const lessonIds = lSnap.docs.map((d) => d.id);
+
+  const pool: Question[] = [];
+
+  // 2) pool topla
+  for (const lessonId of lessonIds) {
+    const tSnap = await getDocs(
+      query(topicsCol(user.uid, lessonId), orderBy("lastActivityAt", "desc")),
+    );
+    const topicIds = tSnap.docs.map((d) => d.id);
+
+    for (const topicId of topicIds) {
+      const qSnap = await getDocs(
+        query(
+          questionsCol(user.uid, lessonId, topicId),
+          orderBy("createdAt", "desc"),
+        ),
+      );
+      for (const d of qSnap.docs) {
+        pool.push({ ...(d.data() as any), id: d.id } as Question);
+        if (pool.length >= poolLimit) break;
+      }
+      if (pool.length >= poolLimit) break;
+    }
+    if (pool.length >= poolLimit) break;
+  }
+
+  if (!pool.length) return [];
+
+  // 3) adayları çıkar
+  const solvedCandidates = pool
+    .map((q) => {
+      const last = toDateSafe((q as any).lastAttemptAt);
+      const ds = last ? daysSince(last) : null;
+      const attempts = (q.solvedCount ?? 0) + (q.unsolvedCount ?? 0);
+      return { q, last, ds, attempts };
+    })
+    .filter((x) => x.attempts > 0) // attempt görmüş olsun
+    .filter((x) => x.q.lastResult === "solved") // solved son durum
+    .filter((x) => (x.ds ?? -1) >= minDays) // üzerinden X gün geçmiş
+    .sort((a, b) => {
+      // önce daha eski (daysSince büyük), sonra solvedCount büyük
+      const d = (b.ds ?? 0) - (a.ds ?? 0);
+      if (d !== 0) return d;
+      return (b.q.solvedCount ?? 0) - (a.q.solvedCount ?? 0);
+    })
+    .map((x) => x.q);
+
+  let selected = shuffle(solvedCandidates).slice(0, take);
+
+  // 4) yetmezse fallback: attempt görmüş diğerlerinden tamamla
+  if (selected.length < take) {
+    const rest = pool
+      .map((q) => {
+        const attempts = (q.solvedCount ?? 0) + (q.unsolvedCount ?? 0);
+        const last = toDateSafe((q as any).lastAttemptAt);
+        const ds = last ? daysSince(last) : null;
+        return { q, attempts, ds };
+      })
+      .filter((x) => x.attempts > 0)
+      .sort((a, b) => (b.ds ?? 0) - (a.ds ?? 0))
+      .map((x) => x.q);
+
+    const fill = rest.filter((q) => !selected.some((s) => s.id === q.id));
+    selected = uniqueById([...selected, ...shuffle(fill)]).slice(0, take);
+  }
+
+  return shuffle(selected);
+}
