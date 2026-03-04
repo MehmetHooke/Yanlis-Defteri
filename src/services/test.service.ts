@@ -343,3 +343,94 @@ export async function getMod3RetentionQuestions(params: {
 
   return shuffle(selected);
 }
+
+//-----------------------/ Test Card Quality /------------------------------------
+
+export type TestStats = {
+  totalQuestions: number;
+  attemptedQuestions: number;
+  totalAttempts: number;
+  solvedAttempts: number;
+  unsolvedAttempts: number;
+  qualityScore: number; // 0-100
+  status: "empty" | "low" | "ok";
+};
+
+export async function getTestStats(params?: {
+  poolLimit?: number;
+}): Promise<TestStats> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const poolLimit = params?.poolLimit ?? 250;
+
+  const lSnap = await getDocs(
+    query(lessonsCol(user.uid), orderBy("lastActivityAt", "desc")),
+  );
+  const lessonIds = lSnap.docs.map((d) => d.id);
+
+  let totalQuestions = 0;
+  let attemptedQuestions = 0;
+  let totalAttempts = 0;
+  let solvedAttempts = 0;
+  let unsolvedAttempts = 0;
+
+  for (const lessonId of lessonIds) {
+    const tSnap = await getDocs(
+      query(topicsCol(user.uid, lessonId), orderBy("lastActivityAt", "desc")),
+    );
+    const topicIds = tSnap.docs.map((d) => d.id);
+
+    for (const topicId of topicIds) {
+      const qSnap = await getDocs(
+        query(
+          questionsCol(user.uid, lessonId, topicId),
+          orderBy("createdAt", "desc"),
+        ),
+      );
+
+      for (const d of qSnap.docs) {
+        const q = { ...(d.data() as any), id: d.id } as Question;
+
+        totalQuestions++;
+
+        const s = q.solvedCount ?? 0;
+        const u = q.unsolvedCount ?? 0;
+        const attempts = s + u;
+
+        if (attempts > 0) attemptedQuestions++;
+        totalAttempts += attempts;
+        solvedAttempts += s;
+        unsolvedAttempts += u;
+
+        if (totalQuestions >= poolLimit) break;
+      }
+      if (totalQuestions >= poolLimit) break;
+    }
+    if (totalQuestions >= poolLimit) break;
+  }
+
+  // Basit kalite puanı (MVP):
+  // - soru sayısı ve attempt sayısı yükseldikçe artar
+  const qScore = Math.min(1, totalQuestions / 30); // 30 soruda 1.0
+  const aScore = Math.min(1, totalAttempts / 60); // 60 attemptte 1.0
+  const coverage =
+    totalQuestions > 0 ? Math.min(1, attemptedQuestions / totalQuestions) : 0;
+  const qualityScore = Math.round(
+    (qScore * 0.4 + aScore * 0.4 + coverage * 0.2) * 100,
+  );
+
+  let status: TestStats["status"] = "ok";
+  if (totalQuestions === 0) status = "empty";
+  else if (totalQuestions < 10 || totalAttempts < 15) status = "low";
+
+  return {
+    totalQuestions,
+    attemptedQuestions,
+    totalAttempts,
+    solvedAttempts,
+    unsolvedAttempts,
+    qualityScore,
+    status,
+  };
+}
