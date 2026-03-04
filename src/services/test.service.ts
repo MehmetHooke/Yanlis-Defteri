@@ -434,3 +434,134 @@ export async function getTestStats(params?: {
     status,
   };
 }
+
+//-----------------------/Günlük kart için yardımcı fonksiyon/---------------------------
+
+export async function getMod1WeakQuestionsForTopic(params: {
+  lessonId: string;
+  topicId: string;
+  take?: number;
+  poolLimit?: number;
+}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const take = params.take ?? 5;
+  const poolLimit = params.poolLimit ?? 120;
+
+  const pool: Question[] = [];
+  const qSnap = await getDocs(
+    query(
+      collection(
+        db,
+        "users",
+        user.uid,
+        "lessons",
+        params.lessonId,
+        "topics",
+        params.topicId,
+        "questions",
+      ),
+      orderBy("createdAt", "desc"),
+    ),
+  );
+
+  for (const d of qSnap.docs) {
+    pool.push({ ...(d.data() as any), id: d.id } as Question);
+    if (pool.length >= poolLimit) break;
+  }
+
+  const sorted = pool
+    .map((q: any) => ({
+      q,
+      unsolved: q.unsolvedCount ?? 0,
+      solved: q.solvedCount ?? 0,
+      attempts: (q.unsolvedCount ?? 0) + (q.solvedCount ?? 0),
+    }))
+    .sort((a, b) => {
+      if (a.attempts === 0 && b.attempts > 0) return 1;
+      if (b.attempts === 0 && a.attempts > 0) return -1;
+      return b.unsolved - a.unsolved;
+    })
+    .map((x) => x.q);
+
+  // topic içinden al
+  let picked = sorted.slice(0, take);
+
+  // yetmezse global mod1’den tamamla
+  if (picked.length < take) {
+    const rest = await getMod1WeakQuestions({
+      take: take - picked.length,
+      poolLimit: 120,
+    });
+    const seen = new Set(picked.map((x) => x.id));
+    picked = [...picked, ...rest.filter((x) => !seen.has(x.id))].slice(0, take);
+  }
+
+  return picked;
+}
+
+export async function getMod3RetentionQuestionsForTopic(params: {
+  lessonId: string;
+  topicId: string;
+  take?: number;
+  poolLimit?: number;
+  minDays?: number;
+}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const take = params.take ?? 5;
+  const poolLimit = params.poolLimit ?? 200;
+  const minDays = params.minDays ?? 7;
+
+  const pool: Question[] = [];
+  const qSnap = await getDocs(
+    query(
+      collection(
+        db,
+        "users",
+        user.uid,
+        "lessons",
+        params.lessonId,
+        "topics",
+        params.topicId,
+        "questions",
+      ),
+      orderBy("createdAt", "desc"),
+    ),
+  );
+
+  for (const d of qSnap.docs) {
+    pool.push({ ...(d.data() as any), id: d.id } as Question);
+    if (pool.length >= poolLimit) break;
+  }
+
+  const solvedCandidates = pool
+    .map((q) => {
+      const last = toDateSafe((q as any).lastAttemptAt);
+      const ds = last ? daysSince(last) : null;
+      const attempts = (q.solvedCount ?? 0) + (q.unsolvedCount ?? 0);
+      return { q, ds, attempts };
+    })
+    .filter((x) => x.attempts > 0)
+    .filter((x) => x.q.lastResult === "solved")
+    .filter((x) => (x.ds ?? -1) >= minDays)
+    .sort((a, b) => (b.ds ?? 0) - (a.ds ?? 0))
+    .map((x) => x.q);
+
+  let picked = solvedCandidates.slice(0, take);
+
+  if (picked.length < take) {
+    // fallback global mod3
+    const rest = await getMod3RetentionQuestions({
+      take: take - picked.length,
+      poolLimit: 200,
+      minDays,
+    });
+    const seen = new Set(picked.map((x) => x.id));
+    picked = [...picked, ...rest.filter((x) => !seen.has(x.id))].slice(0, take);
+  }
+
+  return picked;
+}

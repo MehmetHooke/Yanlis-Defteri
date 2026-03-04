@@ -4,9 +4,9 @@ import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
-import { getMod1WeakQuestions } from "@/src/services/test.service";
+import { getMod1WeakQuestions, getMod1WeakQuestionsForTopic } from "@/src/services/test.service";
 import type { Question } from "@/src/types/question";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle2, XCircle } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, ImageBackground, Pressable, ScrollView, Text, View } from "react-native";
@@ -25,6 +25,11 @@ function getQuestionText(item: Question | null) {
 
 
 export default function TestMod1Screen() {
+    const { lessonId, topicId } = useLocalSearchParams<{
+        lessonId?: string;
+        topicId?: string;
+    }>();
+
     const { theme } = useTheme();
     const c = theme.colors;
     const { alert } = useAppAlert();
@@ -54,8 +59,15 @@ export default function TestMod1Screen() {
         (async () => {
             try {
                 setLoading(true);
-                const qs = await getMod1WeakQuestions({ take: 5, poolLimit: 120 });
-                setQuestions(qs);
+                const qs =
+                    lessonId && topicId
+                        ? await getMod1WeakQuestionsForTopic({
+                            lessonId: String(lessonId),
+                            topicId: String(topicId),
+                            take: 5,
+                            poolLimit: 120,
+                        })
+                        : await getMod1WeakQuestions({ take: 5, poolLimit: 120 }); setQuestions(qs);
                 setI(0);
                 setSolvedCount(0);
             } catch (e: any) {

@@ -2,13 +2,12 @@ import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -17,7 +16,8 @@ import { auth } from "@/src/lib/firebase";
 import { getUserLessons } from "@/src/services/question.service";
 import type { Lesson } from "@/src/types/lesson";
 
-import { BookOpen, BookOpenCheck, Layers, Plus } from "lucide-react-native";
+import DailyFocusCard from "@/src/components/home/DailyFocusCard";
+import { Book, BookOpen, ChevronRight, Layers, Plus } from "lucide-react-native";
 
 /**
  * ✅ Route'lar
@@ -107,32 +107,37 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <View
-          style={[
-            styles.iconPill,
-            {
-              backgroundColor: highlight
-                ? "rgba(255,255,255,0.15)"
-                : c.tabActiveBg,
-              borderColor: highlight
-                ? "rgba(255,255,255,0.2)"
-                : c.border,
-            },
-          ]}
-        >
-          {icon}
-        </View>
+        {/* icon + title aynı satır */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View
+            style={[
+              styles.iconPill,
+              {
+                backgroundColor: highlight
+                  ? "rgba(255,255,255,0.15)"
+                  : c.tabActiveBg,
+                borderColor: highlight
+                  ? "rgba(255,255,255,0.2)"
+                  : c.border,
+              },
+            ]}
+          >
+            {icon}
+          </View>
 
-        <View style={{ marginTop: 10 }}>
           <Text
             style={[
               styles.cardTitle,
-              { color: highlight ? c.buttonText : c.mutedText },
+              { color: highlight ? c.buttonText : c.text },
             ]}
+            numberOfLines={1}
           >
             {title}
           </Text>
+        </View>
 
+        {/* value + subtitle alt alta */}
+        <View style={{ marginTop: 2 }} className="">
           {!!value && (
             <Text
               style={[
@@ -149,9 +154,7 @@ export default function HomeScreen() {
               style={[
                 styles.cardSub,
                 {
-                  color: highlight
-                    ? "rgba(255,255,255,0.85)"
-                    : c.mutedText,
+                  color: highlight ? "rgba(255,255,255,0.85)" : c.mutedText,
                 },
               ]}
             >
@@ -174,63 +177,112 @@ export default function HomeScreen() {
     );
   };
 
-  const ActionCard = ({
+  //gridv2
+  const GridCardV2 = ({
     title,
-    subtitle,
+    description,
+    actionText,
     icon,
-    variant,
     onPress,
+    highlight = false,
   }: {
     title: string;
-    subtitle: string;
+    description?: string;
+    actionText?: string;
     icon: React.ReactNode;
-    variant: "primary" | "secondary";
-    onPress: () => void;
+    onPress?: () => void;
+    highlight?: boolean;
   }) => {
-    const isPrimary = variant === "primary";
-
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-          { opacity: pressed ? 0.92 : 1 },
+    const body = (
+      <View
+        style={[
           styles.gridCard,
           {
-            backgroundColor: isPrimary ? c.buttonBg : c.card,
-            borderColor: isPrimary ? "transparent" : c.border,
+            backgroundColor: highlight ? c.buttonBg : c.card,
+            borderColor: highlight ? "transparent" : c.border,
           },
         ]}
       >
-        <View
-          style={[
-            styles.iconPill,
-            {
-              backgroundColor: isPrimary ? "rgba(255,255,255,0.16)" : c.tabActiveBg,
-              borderColor: isPrimary ? "rgba(255,255,255,0.18)" : c.border,
-            },
-          ]}
-        >
-          {icon}
-        </View>
+        {/* icon + title */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View
+            style={[
+              styles.iconPill,
+              {
+                backgroundColor: highlight
+                  ? "rgba(255,255,255,0.15)"
+                  : c.tabActiveBg,
+                borderColor: highlight
+                  ? "rgba(255,255,255,0.2)"
+                  : c.border,
+              },
+            ]}
+          >
+            {icon}
+          </View>
 
-        <View style={{ marginTop: 10 }}>
           <Text
             style={[
-              styles.actionTitle,
-              { color: isPrimary ? c.buttonText : c.text },
+              styles.cardTitle,
+              { color: highlight ? c.buttonText : c.text },
             ]}
           >
             {title}
           </Text>
+        </View>
+
+        {/* description */}
+        {!!description && (
           <Text
             style={[
-              styles.actionSub,
-              { color: isPrimary ? "rgba(255,255,255,0.82)" : c.mutedText },
+              styles.cardSub,
+              {
+                marginTop: 6,
+                color: highlight ? "rgba(255,255,255,0.85)" : c.mutedText,
+              },
             ]}
           >
-            {subtitle}
+            {description}
           </Text>
-        </View>
+        )}
+
+        {/* action row */}
+        {!!actionText && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: 14,
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "700",
+                color: highlight ? c.buttonText : c.accent,
+              }}
+            >
+              {actionText}
+            </Text>
+
+            <View style={{ marginLeft: "auto" }}>
+              <ChevronRight
+                size={22}
+                color={highlight ? c.buttonText : c.mutedText}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    );
+
+    if (!onPress) return body;
+
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}
+      >
+        {body}
       </Pressable>
     );
   };
@@ -243,23 +295,8 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* HERO */}
-          <View style={[styles.hero, { backgroundColor: c.card, borderColor: c.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.heroTitle, { color: c.text }]}>
-                Yanlışlarını kaydet,
-                {"\n"}istediğinde saniyeler içinde bul.
-              </Text>
-
-              <Text style={[styles.heroSub, { color: c.mutedText }]}>
-                Ders ve konu altında arşivle. Tekrar edeceğin zaman hepsi hazır.
-              </Text>
-            </View>
-
-            {!!illustration && (
-              <View style={styles.illWrap}>
-                <Image source={illustration} style={styles.ill} resizeMode="contain" />
-              </View>
-            )}
+          <View style={{ marginBottom: 10 }}>
+            <DailyFocusCard />
           </View>
 
           {/* STATS (2 col) */}
@@ -290,42 +327,41 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { color: c.text }]}>
               Hızlı erişim
             </Text>
-
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
-                <GridCard
-
-                  title="Soru ekle"
-                  subtitle="Soru eklemek için tıkla"
-                  icon={<Plus size={18} color={c.accent} />}
-                  onPress={() =>
-                    router.push({ pathname: "/(tabs)/add" })
-                  }
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <GridCard
-                  title="Sorularım"
-                  subtitle="Sorularını görmek için tıkla"
-                  icon={<BookOpen size={18} color={c.accent} />}
-                  onPress={() =>
-                    router.push({ pathname: "/(tabs)/questions" })
-                  }
-                />
-              </View>
-            </View>
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
-              <View style={{ flex: 1 }}>
-                <GridCard
+                <GridCardV2
                   title="Test Yap"
-                  subtitle="Zayıf noktalarını hızlıca toparla"
-                  icon={<BookOpenCheck size={18} color={c.accent} />}
-                  onPress={() => router.push({ pathname: "/(test)" })}
+                  description="Farklı test modları ile mini deneme yap"
+                  actionText="Testi Başlat"
+                  icon={<Book size={18} color={c.accent} />}
+                  onPress={() => router.push("/(test)")}
                 />
               </View>
-                  <View style={{ flex: 1 }}></View>
+
             </View>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+
+              <View style={{ flex: 1 }}>
+                <GridCardV2
+                  title="Yeni Soru Ekle"
+                  description="Yeni Sorular Ekleyebilirsin"
+                  actionText="Soru Ekle"
+                  icon={<Plus size={18} color={c.accent} />}
+                  onPress={() => router.push("/questions")}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <GridCardV2
+                  title="Sorularım"
+                  description="Eklediğin soruları görüntüle"
+                  actionText="Sorulara Git"
+                  icon={<BookOpen size={18} color={c.accent} />}
+                  onPress={() => router.push("/questions")}
+                />
+              </View>
+            </View>
+
 
 
           </View>
@@ -384,7 +420,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
   cardValue: { marginTop: 6, fontSize: 24, fontWeight: "900" },
-  cardSub: { marginTop: 6, fontSize: 10, fontWeight: "700" },
+  cardSub: { marginTop: 6, fontSize: 11, fontWeight: "700" },
 
   actionTitle: { fontSize: 14, fontWeight: "900" },
   actionSub: { marginTop: 6, fontSize: 12, fontWeight: "700" },

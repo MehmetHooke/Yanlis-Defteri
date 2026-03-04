@@ -167,7 +167,7 @@ export default function TestMod2Screen() {
           Karma Tekrar
         </Text>
         <View style={{ marginTop: 8 }}>
-          <TestProgressPill index={i} total={questions.length} color={c.accent} />
+          <TestProgressPill index={i} total={questions.length} color={c.testButtonTextColorGreen} />
         </View>
       </View>
 
