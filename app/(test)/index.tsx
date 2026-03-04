@@ -133,7 +133,7 @@ export default function TestSelectScreen() {
           Test Yap
         </Text>
         <Text style={{ color: c.mutedText, marginTop: 4, fontWeight: "700" }}>
-          İhtiyacına göre bir test seç.
+          Bu alan sorularda çözdüm/çözemedim şeklinde verdiğin yanıtlara göre sürekli olarak güncellenir.Sınavların daha etkili senin elinde ne kadar soru ekleyip çözdüm/çözemedim şeklinde yanıt verirsen sınavlar o kadar kaliteli hale gelir.
         </Text>
       </View>
 
@@ -149,7 +149,7 @@ export default function TestSelectScreen() {
           title="Karma Tekrar"
           desc="Karma sorular ile motivasyonunu toparla"
           icon={<Shuffle size={18} color={c.accent} />}
-          disabled
+          onPress={()=>{router.push("/(test)/mod2")}}
         />
 
         <ModeCard
