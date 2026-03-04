@@ -7,7 +7,24 @@ import type { Question } from "@/src/types/question";
 import { router } from "expo-router";
 import { CheckCircle2, XCircle } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ImageBackground, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, ImageBackground, Pressable, ScrollView, Text, View } from "react-native";
+
+import {
+    Dimensions,
+    Modal
+} from "react-native";
+
+import {
+    Gesture,
+    GestureDetector,
+    GestureHandlerRootView,
+} from "react-native-gesture-handler";
+
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from "react-native-reanimated";
 
 function getQuestionImageUrl(item: Question | null) {
     const fromNew = item?.question?.kind === "photo" ? item.question.image?.url : undefined;
@@ -20,6 +37,182 @@ function getQuestionText(item: Question | null) {
     if (item?.question?.kind === "text") return item.question.text;
     return "";
 }
+
+
+// FULL SCREEN ZOOM FUNCTİON
+
+const { width, height } = Dimensions.get("window");
+
+function FullscreenZoomImage({
+    uri,
+    visible,
+    onClose,
+}: {
+    uri: string;
+    visible: boolean;
+    onClose: () => void;
+}) {
+    const IMG_W = width * 0.95;
+    const IMG_H = height * 0.75;
+
+    const scale = useSharedValue(1);
+    const savedScale = useSharedValue(1);
+
+    const translateX = useSharedValue(0);
+    const translateY = useSharedValue(0);
+    const savedTranslateX = useSharedValue(0);
+    const savedTranslateY = useSharedValue(0);
+
+    const clamp = (v: number, min: number, max: number) => {
+        "worklet";
+        return Math.min(Math.max(v, min), max);
+    };
+
+    const boundTranslations = () => {
+        "worklet";
+        const maxX = (IMG_W * (scale.value - 1)) / 2;
+        const maxY = (IMG_H * (scale.value - 1)) / 2;
+        translateX.value = clamp(translateX.value, -maxX, maxX);
+        translateY.value = clamp(translateY.value, -maxY, maxY);
+    };
+
+    const resetTransform = () => {
+        "worklet";
+        scale.value = 1;
+        savedScale.value = 1;
+        translateX.value = 0;
+        translateY.value = 0;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+    };
+
+    const pan = Gesture.Pan()
+        .onBegin(() => {
+            savedTranslateX.value = translateX.value;
+            savedTranslateY.value = translateY.value;
+        })
+        .onUpdate((e) => {
+            translateX.value = savedTranslateX.value + e.translationX;
+            translateY.value = savedTranslateY.value + e.translationY;
+            boundTranslations();
+        });
+
+    const pinch = Gesture.Pinch()
+        .onBegin(() => {
+            savedScale.value = scale.value;
+            savedTranslateX.value = translateX.value;
+            savedTranslateY.value = translateY.value;
+        })
+        .onUpdate((e) => {
+            const nextScale = clamp(savedScale.value * e.scale, 1, 4);
+
+            const cx = IMG_W / 2;
+            const cy = IMG_H / 2;
+            const dx = e.focalX - cx;
+            const dy = e.focalY - cy;
+
+            translateX.value =
+                savedTranslateX.value + dx - dx * (nextScale / savedScale.value);
+            translateY.value =
+                savedTranslateY.value + dy - dy * (nextScale / savedScale.value);
+
+            scale.value = nextScale;
+            boundTranslations();
+        })
+        .onEnd(() => {
+            if (scale.value <= 1.01) {
+                scale.value = withTiming(1);
+                translateX.value = withTiming(0);
+                translateY.value = withTiming(0);
+                savedScale.value = 1;
+                savedTranslateX.value = 0;
+                savedTranslateY.value = 0;
+            } else {
+                savedScale.value = scale.value;
+            }
+        });
+
+    const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd(() => {
+        resetTransform();
+    });
+
+    const composedGesture = Gesture.Simultaneous(pinch, pan, doubleTap);
+
+    const previewStyle = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: translateX.value },
+            { translateY: translateY.value },
+            { scale: scale.value },
+        ],
+    }));
+
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="fade"
+            onRequestClose={onClose}
+            onShow={() => resetTransform()}
+        >
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: "rgba(0,0,0,0.95)",
+                        justifyContent: "center",
+                        paddingHorizontal: 18,
+                    }}
+                >
+                    <View style={{ alignItems: "flex-end", marginBottom: 12 }}>
+                        <Pressable
+                            onPress={onClose}
+                            style={{
+                                borderRadius: 14,
+                                backgroundColor: "rgba(255,255,255,0.10)",
+                                paddingHorizontal: 14,
+                                paddingVertical: 10,
+                                borderWidth: 1,
+                                borderColor: "rgba(255,255,255,0.10)",
+                            }}
+                        >
+                            <Text style={{ color: "#fff", fontWeight: "800" }}>Kapat</Text>
+                        </Pressable>
+                    </View>
+
+                    <GestureDetector gesture={composedGesture}>
+                        <Animated.Image
+                            source={{ uri }}
+                            style={[
+                                {
+                                    width: IMG_W,
+                                    height: IMG_H,
+                                    borderRadius: 12,
+                                    backgroundColor: "rgba(255,255,255,0.03)",
+                                    alignSelf: "center",
+                                },
+                                previewStyle,
+                            ]}
+                            resizeMode="contain"
+                        />
+                    </GestureDetector>
+
+                    <Text
+                        style={{
+                            color: "rgba(255,255,255,0.55)",
+                            fontSize: 12,
+                            textAlign: "center",
+                            marginTop: 12,
+                        }}
+                    >
+                        Pinch: yakınlaştır • Sürükle: kaydır • Çift dokun: sıfırla
+                    </Text>
+                </View>
+            </GestureHandlerRootView>
+        </Modal>
+    );
+}
+
+
 
 export default function TestMod1Screen() {
     const { theme } = useTheme();
@@ -38,6 +231,14 @@ export default function TestMod1Screen() {
     const total = questions.length;
     const progressText = total ? `${i + 1} / ${total}` : "";
     const [solvedCount, setSolvedCount] = useState(0);
+
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [viewerUri, setViewerUri] = useState("");
+
+    const openViewer = (uri: string) => {
+        setViewerUri(uri);
+        setViewerOpen(true);
+    };
 
     useEffect(() => {
         (async () => {
@@ -60,7 +261,7 @@ export default function TestMod1Screen() {
     const next = (nextSolvedCount: number) => {
         if (i + 1 >= questions.length) {
             router.replace({
-                pathname: "/(tabs)/test/result" as any,
+                pathname: "/(test)/result" as any,
                 params: {
                     mode: "mod1",
                     total: String(questions.length),
@@ -154,12 +355,18 @@ export default function TestMod1Screen() {
                     }}
                 >
                     {questionUri ? (
-                        <View style={{ width: "100%", height: 360, backgroundColor: c.inputBg }}>
-                            {/* burada Image component kullansan daha iyi; şimdilik Text bırakmıyorum */}
-                        </View>
+                        <Pressable onPress={() => openViewer(questionUri)} style={{ width: "100%" }}>
+                            <Image
+                                source={{ uri: questionUri }}
+                                style={{ width: "100%", height: 360, backgroundColor: c.inputBg }}
+                                resizeMode="cover"
+                            />
+                        </Pressable>
                     ) : (
                         <View style={{ padding: 16, minHeight: 220, justifyContent: "center" }}>
-                            <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>Metin sorusu</Text>
+                            <Text style={{ color: c.mutedText, fontSize: 12, fontWeight: "800" }}>
+                                Metin sorusu
+                            </Text>
                             <Text style={{ color: c.text, marginTop: 10, lineHeight: 20, fontWeight: "700" }}>
                                 {questionText?.trim() ? questionText : "—"}
                             </Text>
@@ -235,6 +442,12 @@ export default function TestMod1Screen() {
                     İşaretleyince otomatik sıradaki soruya geçer.
                 </Text>
             </ScrollView>
+
+            <FullscreenZoomImage
+                uri={viewerUri}
+                visible={viewerOpen}
+                onClose={() => setViewerOpen(false)}
+            />
         </ImageBackground>
     );
 }

@@ -321,7 +321,7 @@ export default function HomeScreen() {
                   title="Test Yap"
                   subtitle="Zayıf noktalarını hızlıca toparla"
                   icon={<BookOpenCheck size={18} color={c.accent} />}
-                  onPress={() => router.push({ pathname: "/(tabs)/test" })}
+                  onPress={() => router.push({ pathname: "/(test)" })}
                 />
               </View>
                   <View style={{ flex: 1 }}></View>

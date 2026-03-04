@@ -52,7 +52,7 @@ export default function TestResultScreen() {
 
         <View style={{ marginTop: 14, gap: 10 }}>
           <Pressable
-            onPress={() => router.replace("/(tabs)/test")}
+            onPress={() => router.replace("/(test)")}
             style={{
               borderRadius: 16,
               paddingVertical: 14,

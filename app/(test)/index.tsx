@@ -142,7 +142,7 @@ export default function TestSelectScreen() {
           title="Mod 1 — Zayıf Nokta Testi"
           desc="En çok ‘çözemedim’ aldığın sorulardan 5 soru."
           icon={<Brain size={18} color={c.accent} />}
-          onPress={() => router.push("/(tabs)/test/mod1")}
+          onPress={() => router.push("/(test)/mod1")}
         />
 
         <ModeCard
