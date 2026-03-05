@@ -412,6 +412,7 @@ export default function AddScreen() {
       router.replace("/(tabs)/questions");
     } catch (e: any) {
       alert("Hata", e?.message ?? "Kaydedilemedi");
+      console.error();
     } finally {
       setLoading(false);
     }

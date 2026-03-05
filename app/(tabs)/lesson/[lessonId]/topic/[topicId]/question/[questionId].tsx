@@ -48,6 +48,7 @@ import {
   ChevronRight,
   ChevronUp,
   Lightbulb,
+  Pencil,
   Trash2,
   XCircle,
 } from "lucide-react-native";
@@ -837,7 +838,32 @@ function QuestionDetailPage({
               {createdAtText}
             </Text>
           </View>
-          <View style={{ width: 42, height: 42 }} />
+          <View style={{ width: 42, height: 42 }} /><View style={{ width: 42, height: 42 }}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/question/test/[id]",
+                  params: {
+                    id: questionId,      // edit ekranındaki [id]
+                    lessonId,            // opsiyonel ama edit için kullanacağız
+                    topicId,             // opsiyonel
+                  },
+                })
+              }
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 14,
+                backgroundColor: c.inputBg,
+                borderWidth: 1,
+                borderColor: c.border,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Pencil size={20} color={c.text} />
+            </Pressable>
+          </View>
         </View>
       </View>
 

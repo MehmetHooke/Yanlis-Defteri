@@ -197,9 +197,12 @@ export default function TestMod1Screen() {
                         </View>
                     )}
                 </View>
-
+                <View className="mt-5">
+                    <Text style={{ color: c.text, marginTop: 10, lineHeight: 20, fontWeight: "700" }}>Soruyu çözdün mü ?</Text>
+                </View>
                 {/* Actions */}
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
+
                     <Pressable
                         onPress={() => mark("solved")}
                         style={{

@@ -8,6 +8,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -18,7 +19,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-  writeBatch,
+  writeBatch
 } from "firebase/firestore";
 
 import {
@@ -69,7 +70,7 @@ function questionsCol(userId: string, lessonId: string, topicId: string) {
   );
 }
 
-function questionDoc(
+export function questionDoc(
   userId: string,
   lessonId: string,
   topicId: string,
@@ -650,4 +651,359 @@ export async function renameTopic(params: {
     key,
     updatedAt: serverTimestamp(),
   });
+}
+
+/** ------------------------------- * V3 types (service input) * ------------------------------- */
+
+type RemoteImage = { url: string; path: string };
+
+type UpdateDraftQuestion =
+  | { kind: "photo"; imageUri?: string; image?: RemoteImage }
+  | { kind: "text"; text: string };
+
+type UpdateDraftAnswer =
+  | {
+      id: string;
+      kind: "choice";
+      choice?: "A" | "B" | "C" | "D" | "E";
+      explanation?: string;
+    }
+  | {
+      id: string;
+      kind: "photo";
+      imageUri?: string;
+      image?: RemoteImage;
+      explanation?: string;
+    }
+  | {
+      id: string;
+      kind: "text";
+      text?: string;
+      explanation?: string;
+    };
+
+async function safeDeleteStoragePath(path?: string | null) {
+  if (!path) return;
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (e) {
+    console.log("Storage delete failed:", path, e);
+  }
+}
+
+export async function updateQuestionV3(params: {
+  userId: string;
+  questionId: string;
+
+  oldLessonId: string;
+  oldTopicId: string;
+
+  lesson: string;
+  topic: string;
+
+  question: UpdateDraftQuestion;
+  answers: UpdateDraftAnswer[];
+}) {
+  const { userId, questionId, oldLessonId, oldTopicId } = params;
+
+  const lessonInput = params.lesson.trim();
+  const topicInput = params.topic.trim();
+  if (!lessonInput) throw new Error("Ders boş olamaz.");
+  if (!topicInput) throw new Error("Konu boş olamaz.");
+
+  // ✅ Validasyon - soru
+  if (params.question.kind === "photo") {
+    const hasNew = !!params.question.imageUri;
+    const hasOld = !!params.question.image;
+    if (!hasNew && !hasOld) throw new Error("Soru fotoğrafı seçilmedi.");
+  } else {
+    if (!params.question.text?.trim())
+      throw new Error("Soru metni boş olamaz.");
+  }
+
+  // ✅ Validasyon - cevaplar
+  const answers = params.answers ?? [];
+  if (answers.length < 1) throw new Error("En az 1 çözüm kartı olmalı.");
+  if (answers.length > 3) throw new Error("En fazla 3 çözüm ekleyebilirsin.");
+
+  const providedAnswers = answers.filter((a) => {
+    if (a.kind === "choice") return !!a.choice;
+    if (a.kind === "photo") return !!a.imageUri || !!a.image;
+    return !!a.text?.trim();
+  });
+
+  if (providedAnswers.length < 1) {
+    throw new Error("En az 1 çözüm eklemelisin (Şıklı / Görsel / Metin).");
+  }
+
+  for (const a of providedAnswers) {
+    if (a.kind === "text" && (a.text?.length ?? 0) > 200) {
+      throw new Error("Metin çözüm 200 karakteri geçemez.");
+    }
+  }
+
+  console.log("[SVC] ENTER updateQuestionV3 ✅", {
+    userId,
+    questionId,
+    oldLessonId,
+    oldTopicId,
+  });
+
+  // 1) oldRef + oldData
+  const oldRef = questionDoc(userId, oldLessonId, oldTopicId, questionId);
+  console.log("[SVC] fetching old question:", oldRef.path);
+
+  const oldSnap = await getDoc(oldRef);
+  if (!oldSnap.exists()) throw new Error("Soru bulunamadı (oldRef).");
+  const oldData = oldSnap.data() as Question;
+
+  // 2) ensure new lesson/topic
+  const { lessonId: newLessonId } = await ensureLesson(userId, lessonInput);
+  const { topicId: newTopicId } = await ensureTopic(
+    userId,
+    newLessonId,
+    topicInput,
+  );
+
+  const moved = oldLessonId !== newLessonId || oldTopicId !== newTopicId;
+
+  // 3) eski storage path’leri yakala (soru + cevaplar)
+  const pathsToDeleteAfterCommit: string[] = [];
+
+  const oldQuestionPhotoPath =
+    oldData?.question?.kind === "photo"
+      ? (oldData.question.image?.path ?? null)
+      : ((oldData as any)?.questionImage?.path ??
+        (oldData as any)?.imagePath ??
+        null);
+
+  const oldAnswers = (oldData as any)?.answers ?? [];
+  const oldAnswerPhotoById = new Map<string, string>();
+  for (const oa of oldAnswers) {
+    if (oa?.kind === "photo" && oa?.image?.path) {
+      oldAnswerPhotoById.set(String(oa.id), oa.image.path);
+    }
+  }
+
+  // 4) question payload
+  let newQuestionPayload: any;
+
+  if (params.question.kind === "photo") {
+    if (params.question.imageUri) {
+      const img = await uploadImageUri(
+        userId,
+        params.question.imageUri,
+        "questions",
+      );
+      newQuestionPayload = { kind: "photo", image: img };
+
+      // eski soru foto varsa, commit’ten sonra sil
+      if (oldQuestionPhotoPath)
+        pathsToDeleteAfterCommit.push(oldQuestionPhotoPath);
+    } else if (params.question.image) {
+      newQuestionPayload = { kind: "photo", image: params.question.image };
+    } else {
+      throw new Error("Soru fotoğrafı eksik.");
+    }
+  } else {
+    newQuestionPayload = { kind: "text", text: params.question.text.trim() };
+
+    // eğer eskiden photo ise, commit’ten sonra eski foto sil
+    if (oldQuestionPhotoPath)
+      pathsToDeleteAfterCommit.push(oldQuestionPhotoPath);
+  }
+
+  // 5) answers payload
+  const newAnswersPayload: any[] = [];
+  const newIds = new Set<string>();
+
+  for (const a of providedAnswers) {
+    newIds.add(String(a.id));
+
+    if (a.kind === "photo") {
+      if (a.imageUri) {
+        const up = await uploadImageUri(userId, a.imageUri, "answers");
+        newAnswersPayload.push({
+          id: a.id,
+          kind: "photo",
+          image: up,
+          ...(a.explanation?.trim()
+            ? { explanation: a.explanation.trim() }
+            : {}),
+        });
+
+        // bu id eskiden photo ise, commit’ten sonra eskiyi sil
+        const oldPath = oldAnswerPhotoById.get(String(a.id));
+        if (oldPath) pathsToDeleteAfterCommit.push(oldPath);
+      } else {
+        const existing =
+          (a as any).image ??
+          (oldAnswers.find((x: any) => String(x.id) === String(a.id)) as any)
+            ?.image;
+
+        if (!existing?.path)
+          throw new Error(`Çözüm görseli bulunamadı (id=${a.id}).`);
+
+        newAnswersPayload.push({
+          id: a.id,
+          kind: "photo",
+          image: existing,
+          ...(a.explanation?.trim()
+            ? { explanation: a.explanation.trim() }
+            : {}),
+        });
+      }
+      continue;
+    }
+
+    if (a.kind === "choice") {
+      // eskiden photo id’siyse commit’ten sonra sil
+      const oldPath = oldAnswerPhotoById.get(String(a.id));
+      if (oldPath) pathsToDeleteAfterCommit.push(oldPath);
+
+      newAnswersPayload.push({
+        id: a.id,
+        kind: "choice",
+        choice: a.choice,
+        ...(a.explanation?.trim() ? { explanation: a.explanation.trim() } : {}),
+      });
+      continue;
+    }
+
+    // text
+    const oldPath = oldAnswerPhotoById.get(String(a.id));
+    if (oldPath) pathsToDeleteAfterCommit.push(oldPath);
+
+    newAnswersPayload.push({
+      id: a.id,
+      kind: "text",
+      text: a.text?.trim(),
+      ...(a.explanation?.trim() ? { explanation: a.explanation.trim() } : {}),
+    });
+  }
+
+  // 6) tamamen silinen answer id’lerinin eski fotoğrafları
+  for (const [oldId, oldPath] of oldAnswerPhotoById.entries()) {
+    if (!newIds.has(oldId)) pathsToDeleteAfterCommit.push(oldPath);
+  }
+
+  // 7) newDocData (undefined yok!)
+  // deleteField burada kullanılmayacak (set merge:false var)
+  // legacy alanları silmeyi batch.update ile yapacağız.
+  const newDocData: any = {
+    ...oldData, // metrics vb kalsın
+    id: questionId,
+    lessonId: newLessonId,
+    topicId: newTopicId,
+
+    question: newQuestionPayload,
+    answers: newAnswersPayload,
+
+    createdAt: oldData.createdAt,
+    updatedAt: serverTimestamp(),
+
+    userId,
+  };
+
+  // 8) batch commit
+  const batch = writeBatch(db);
+
+  const newRef = doc(questionsCol(userId, newLessonId, newTopicId), questionId);
+
+  if (moved) {
+    batch.set(newRef, newDocData, { merge: false });
+    batch.delete(oldRef);
+
+    // counter - old
+    batch.update(topicDoc(userId, oldLessonId, oldTopicId), {
+      questionCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+    batch.update(lessonDoc(userId, oldLessonId), {
+      questionCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+
+    // counter + new
+    batch.update(topicDoc(userId, newLessonId, newTopicId), {
+      questionCount: increment(1),
+      updatedAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp(),
+    });
+    batch.update(lessonDoc(userId, newLessonId), {
+      questionCount: increment(1),
+      updatedAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp(),
+    });
+
+    // ✅ legacy alanları yeni doc üstünden sil
+    batch.update(newRef, {
+      questionImage: deleteField(),
+      imageUrl: deleteField(),
+      imagePath: deleteField(),
+    });
+  } else {
+    batch.set(oldRef, newDocData, { merge: false });
+
+    batch.update(topicDoc(userId, newLessonId, newTopicId), {
+      updatedAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp(),
+    });
+    batch.update(lessonDoc(userId, newLessonId), {
+      updatedAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp(),
+    });
+
+    // ✅ legacy alanları aynı doc üstünden sil
+    batch.update(oldRef, {
+      questionImage: deleteField(),
+      imageUrl: deleteField(),
+      imagePath: deleteField(),
+    });
+  }
+
+  await batch.commit();
+
+  // 9) Storage delete (commit sonrası, best effort)
+  // duplicate path varsa tekrarlı silmesin diye:
+  const uniqPaths = Array.from(new Set(pathsToDeleteAfterCommit)).filter(
+    Boolean,
+  );
+  for (const p of uniqPaths) {
+    await safeDeleteStoragePath(p);
+  }
+
+  // 10) moved ise cleanup + lastActivity
+  if (moved) {
+    const oldTopicSnap = await getDoc(
+      topicDoc(userId, oldLessonId, oldTopicId),
+    );
+    if (oldTopicSnap.exists()) {
+      const t = oldTopicSnap.data() as Topic;
+      if ((t.questionCount ?? 0) <= 0) {
+        const b2 = writeBatch(db);
+        b2.delete(topicDoc(userId, oldLessonId, oldTopicId));
+        b2.update(lessonDoc(userId, oldLessonId), {
+          topicCount: increment(-1),
+          updatedAt: serverTimestamp(),
+        });
+        await b2.commit();
+      }
+    }
+
+    const oldLessonSnap = await getDoc(lessonDoc(userId, oldLessonId));
+    if (oldLessonSnap.exists()) {
+      const l = oldLessonSnap.data() as Lesson;
+      const qc = l.questionCount ?? 0;
+      const tc = l.topicCount ?? 0;
+      if (qc <= 0 && tc <= 0) {
+        await deleteDoc(lessonDoc(userId, oldLessonId));
+      }
+    }
+
+    await recomputeLastActivity(userId, oldLessonId, oldTopicId);
+    await recomputeLastActivity(userId, newLessonId, newTopicId);
+  }
+
+  return { moved, newLessonId, newTopicId, questionId };
 }

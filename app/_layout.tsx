@@ -11,7 +11,16 @@ export default function RootLayout() {
     <ThemeProvider>
       <AppAlertProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            {/* ✅ modal ekran */}
+            <Stack.Screen
+              name="question/edit/[id]"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+              }}
+            />
+          </Stack>
         </GestureHandlerRootView>
       </AppAlertProvider>
     </ThemeProvider>

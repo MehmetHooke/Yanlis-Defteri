@@ -198,8 +198,8 @@ export default function HomeScreen() {
         style={[
           styles.gridCard,
           {
-            backgroundColor: highlight ? c.buttonBg : c.card,
-            borderColor: highlight ? "transparent" : c.border,
+            backgroundColor: highlight ? c.card : c.card,
+            borderColor: highlight ? c.accent : c.border,
           },
         ]}
       >
@@ -335,6 +335,7 @@ export default function HomeScreen() {
                   actionText="Testi Başlat"
                   icon={<Book size={18} color={c.accent} />}
                   onPress={() => router.push("/(test)")}
+                  highlight
                 />
               </View>
 
