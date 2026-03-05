@@ -2,7 +2,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import React, { createContext, useContext, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, Text, View } from "react-native";
 
-type AlertVariant = "default" | "success" | "warning" | "danger";
+export type AlertVariant = "default" | "success" | "warning" | "danger";
 
 type AlertButton = {
   text: string;
@@ -19,7 +19,7 @@ type AlertPayload = {
   dismissible?: boolean;
 };
 
-type AppAlertApi = {
+export type AppAlertApi = {
   alert: (
     title: string,
     message?: string,

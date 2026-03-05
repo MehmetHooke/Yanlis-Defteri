@@ -2,7 +2,9 @@
 import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
 import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
+import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import { getMod3RetentionQuestions, getMod3RetentionQuestionsForTopic } from "@/src/services/test.service";
 import type { Question } from "@/src/types/question";
@@ -30,7 +32,18 @@ export default function TestMod3Screen() {
     }>();
     const { theme } = useTheme();
     const c = theme.colors;
-    const { alert } = useAppAlert();
+    const api = useAppAlert();
+    const { alert } = api;
+
+    useTestExitToHomeOnBack({
+        api,
+        goHome: () => router.replace("/(tabs)"),
+        title: "Testten çık",
+        message: "Testten çıkıp anasayfaya dönmek istiyor musun?",
+        confirmText: "Çık",
+        cancelText: "Vazgeç",
+        destructive: true,
+    });
 
     const [loading, setLoading] = useState(true);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -177,6 +190,11 @@ export default function TestMod3Screen() {
                         </View>
                     )}
                 </View>
+
+                <TestAnswersAccordion
+                    answers={current?.answers}
+                    onOpenImage={(uri) => openViewer(uri)}
+                />
 
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
                     <Pressable

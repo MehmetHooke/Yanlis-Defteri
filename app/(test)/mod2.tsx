@@ -2,7 +2,9 @@
 import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
 import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
+import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import { getMod2MixedQuestions } from "@/src/services/test.service";
 import type { Question } from "@/src/types/question";
@@ -10,13 +12,13 @@ import { router } from "expo-router";
 import { CheckCircle2, XCircle } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    ImageBackground,
-    Pressable,
-    ScrollView,
-    Text,
-    View,
+  ActivityIndicator,
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
 } from "react-native";
 
 function getQuestionImageUrl(item: Question | null) {
@@ -34,7 +36,18 @@ function getQuestionText(item: Question | null) {
 export default function TestMod2Screen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const { alert } = useAppAlert();
+  const api = useAppAlert();
+  const { alert } = api;
+
+  useTestExitToHomeOnBack({
+    api,
+    goHome: () => router.replace("/(tabs)"),
+    title: "Testten çık",
+    message: "Testten çıkıp anasayfaya dönmek istiyor musun?",
+    confirmText: "Çık",
+    cancelText: "Vazgeç",
+    destructive: true,
+  });
 
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -143,7 +156,7 @@ export default function TestMod2Screen() {
           </Text>
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.push("/(tabs)")}
             style={{
               marginTop: 14,
               borderRadius: 16,
@@ -201,6 +214,10 @@ export default function TestMod2Screen() {
             </View>
           )}
         </View>
+        <TestAnswersAccordion
+          answers={current?.answers}
+          onOpenImage={(uri) => openViewer(uri)}
+        />
 
         {/* Actions */}
         <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>

@@ -39,6 +39,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import EmptyState from "@/src/components/EmptyState";
+import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -1008,161 +1009,10 @@ function QuestionDetailPage({
         ) : null}
 
 
-        {/* Answers toggle */}
-        <Pressable
-          onPress={toggleAnswers}
-          style={{
-            marginTop: 14,
-            borderRadius: 16,
-            backgroundColor: c.card,
-            borderWidth: 1,
-            borderColor: c.borderStrong,
-            paddingVertical: 15,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View className="flex-1 flex-row gap-2">
-            <CheckCircle2 size={18} color={"green"} />
-            <Text style={{ color: c.text, fontWeight: "900" }}>
-              {showAnswers ? "Cevapları Gizle" : "Cevapları Göster"}
-            </Text>
-          </View>
-          {showAnswers ? (
-            <ChevronUp size={18} color={c.mutedText} />
-          ) : (
-            <ChevronDown size={18} color={c.mutedText} />
-          )}
-        </Pressable>
-
-        {/* Answers list */}
-        <Animated.View style={[{ overflow: "hidden" }, answersAnimStyle]}>
-          <View style={{ marginTop: 12, gap: 12 }}>
-            {answers.map((a, idx) => (
-              <View
-                key={a.id ?? String(idx)}
-                style={{
-                  borderRadius: 18,
-                  backgroundColor: c.card,
-                  borderWidth: 1,
-                  borderColor: c.borderStrong,
-                  padding: 14,
-                }}
-              >
-                <Text style={{ color: c.text, fontWeight: "900" }}>
-                  Çözüm {idx + 1}
-                </Text>
-                {a.kind === "text" ? (
-                  <View
-                    style={{
-                      marginTop: 10,
-                      alignSelf: "flex-start",
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 12,
-                      backgroundColor: c.tabActiveBg,
-                      borderWidth: 1,
-                      borderColor: c.border,
-                    }}
-                  >
-                    <Text
-                      style={{ color: "green", fontWeight: "900" }}
-                    >
-                      Açıklama: {a.text ?? "-"}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {a.kind === "choice" ? (
-                  <View
-                    style={{
-                      marginTop: 10,
-                      alignSelf: "flex-start",
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 12,
-                      backgroundColor: c.tabActiveBg,
-                      borderWidth: 1,
-                      borderColor: c.border,
-                    }}
-                  >
-                    <Text
-                      style={{ color: "green", fontWeight: "900" }}
-                    >
-                      Doğru Şık: {a.choice ?? "-"}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {a.kind === "photo" ? (
-                  <View style={{ marginTop: 10 }}>
-                    {a.image?.url ? (
-                      <Pressable
-                        onPress={() => openViewer(a.image!.url)}
-                        style={{
-                          borderRadius: 14,
-                          overflow: "hidden",
-                          borderWidth: 1,
-                          borderColor: c.borderStrong,
-                          backgroundColor: c.inputBg,
-                        }}
-                      >
-                        <Image
-                          source={{ uri: a.image.url }}
-                          style={{ width: "100%", height: 240 }}
-                          resizeMode="cover"
-                        />
-                      </Pressable>
-                    ) : (
-                      <Text style={{ color: c.mutedText, marginTop: 6 }}>
-                        Fotoğraf yok
-                      </Text>
-                    )}
-                  </View>
-                ) : null}
-
-                {a.explanation?.trim() ? (
-                  <View>
-                    <Text
-                      style={{
-                        color: c.text,
-                        marginTop: 10,
-                        fontWeight: "900",
-                      }}
-                    >
-                      Püf Nokta
-                    </Text>
-                    <Text
-                      style={{
-                        color: c.mutedText,
-                        marginTop: 2,
-                        lineHeight: 20,
-                      }}
-                    >
-                      {a.explanation}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ))}
-
-            {answers.length === 0 ? (
-              <View
-                style={{
-                  borderRadius: 18,
-                  backgroundColor: c.card,
-                  borderWidth: 1,
-                  borderColor: c.borderStrong,
-                  padding: 14,
-                }}
-              >
-                <Text style={{ color: c.mutedText }}>Cevap bulunamadı.</Text>
-              </View>
-            ) : null}
-          </View>
-        </Animated.View>
+        <TestAnswersAccordion
+          answers={answers}
+          onOpenImage={(uri) => openViewer(uri)}
+        />
 
         {/* çözdüm çözemedim için yeni butonlar ve özellikler. */}
         {/* ✅ SOLVED / UNSOLVED row */}

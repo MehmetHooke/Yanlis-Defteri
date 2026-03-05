@@ -2,7 +2,9 @@
 import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
 import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
+import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import { getMod1WeakQuestions, getMod1WeakQuestionsForTopic } from "@/src/services/test.service";
 import type { Question } from "@/src/types/question";
@@ -32,7 +34,9 @@ export default function TestMod1Screen() {
 
     const { theme } = useTheme();
     const c = theme.colors;
-    const { alert } = useAppAlert();
+
+
+
 
     const [loading, setLoading] = useState(true);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -50,6 +54,19 @@ export default function TestMod1Screen() {
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerUri, setViewerUri] = useState("");
 
+
+    const api = useAppAlert();
+    const { alert } = api;
+
+    useTestExitToHomeOnBack({
+        api,
+        goHome: () => router.replace("/(tabs)"),
+        title: "Testten çık",
+        message: "Testten çıkıp anasayfaya dönmek istiyor musun?",
+        confirmText: "Çık",
+        cancelText: "Vazgeç",
+        destructive: true,
+    });
     const openViewer = (uri: string) => {
         setViewerUri(uri);
         setViewerOpen(true);
@@ -197,9 +214,16 @@ export default function TestMod1Screen() {
                         </View>
                     )}
                 </View>
+
+                <TestAnswersAccordion
+                    answers={current?.answers}
+                    onOpenImage={(uri) => openViewer(uri)}
+                />
                 <View className="mt-5">
                     <Text style={{ color: c.text, marginTop: 10, lineHeight: 20, fontWeight: "700" }}>Soruyu çözdün mü ?</Text>
                 </View>
+
+
                 {/* Actions */}
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
 

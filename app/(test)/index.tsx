@@ -1,5 +1,7 @@
 // app/(tabs)/test/index.tsx
+import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { getTestStats, type TestStats } from "@/src/services/test.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -73,7 +75,7 @@ function ModeCard({
         style={{
           borderRadius: 18,
           padding: 14,
-          marginBottom:10,
+          marginBottom: 10,
           borderWidth: theme.lessonCard.edgeBorderWidth,
           borderColor: theme.lessonCard.edgeBorderColor,
           ...theme.lessonCard.shadow,
@@ -316,6 +318,15 @@ export default function TestSelectScreen() {
   const [stats, setStats] = useState<TestStats | null>(null);
 
   const [onboardOpen, setOnboardOpen] = useState(false);
+
+ const alert = useAppAlert();
+
+  useTestExitToHomeOnBack({
+    alert,
+    goHome: () => router.replace("/(tabs)"),
+    title: "Anasayfaya dönüyorsun",
+    message: "Testten çıkıp anasayfaya dönmek istiyor musun?",
+  });
 
   useEffect(() => {
     (async () => {
