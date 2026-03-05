@@ -40,18 +40,16 @@ import Animated, {
 
 import EmptyState from "@/src/components/EmptyState";
 import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
+import TestHintsAccordion from "@/src/components/test/TestHintsAccordion";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  Lightbulb,
   Pencil,
   Trash2,
-  XCircle,
+  XCircle
 } from "lucide-react-native";
 
 /** Timestamp -> readable */
@@ -927,73 +925,9 @@ function QuestionDetailPage({
           {questionUri ? "Tam ekran için dokunun • Yakınlaştırabilirsiniz" : ""}
         </Text>
 
-        {hasHints && (
-          <Pressable
-            onPress={toggleHints}
-            style={{
-              marginTop: 8,
-              borderRadius: 16,
-              backgroundColor: c.card,
-              borderWidth: 1,
-              borderColor: c.borderStrong,
-              paddingVertical: 14,
-              paddingHorizontal: 14,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Lightbulb size={18} color={"#EDB230"} />
-              <Text style={{ color: c.text, fontWeight: "900" }}>
-                {showHints ? "Püf Noktaları Gizle" : "Püf Noktalarını Göster"}
-              </Text>
-            </View>
 
-            {showHints ? (
-              <ChevronUp size={18} color={c.mutedText} />
-            ) : (
-              <ChevronDown size={18} color={c.mutedText} />
-            )}
-          </Pressable>
-        )}
+        <TestHintsAccordion hints={answers} />
 
-        {showHints && (
-          <View style={{ gap: 12, marginTop: 12 }}>
-            {answers.map((a, idx) => (
-              <View
-                key={a.id ?? String(idx)}
-                style={{
-                  borderRadius: 18,
-                  backgroundColor: c.card,
-                  borderWidth: 1,
-                  borderColor: c.borderStrong,
-                  padding: 14,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Lightbulb size={14} color={"#EDB230"} />
-                  <Text style={{ color: c.text, fontWeight: "900" }}>
-                    Püf Nokta {idx + 1}
-                  </Text>
-                </View>
-
-                {a.explanation?.trim() ? (
-                  <View style={{ marginTop: 10 }}>
-                    <Text style={{ color: c.text, fontWeight: "900" }}>Açıklama:</Text>
-                    <Text style={{ color: c.mutedText, marginTop: 2, lineHeight: 20 }}>
-                      {a.explanation}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={{ color: c.mutedText, marginTop: 10 }}>
-                    Açıklama yok.
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
         {answers.length === 0 ? (
           <View
             style={{

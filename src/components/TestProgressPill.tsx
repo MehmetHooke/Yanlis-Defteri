@@ -3,10 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 export default function TestProgressPill({
@@ -69,7 +69,7 @@ export default function TestProgressPill({
       <View
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         style={{
-          height: 32,
+          height: 20,
           borderRadius: 999,
           overflow: "hidden",
           backgroundColor: c.inputBg,
@@ -96,7 +96,7 @@ export default function TestProgressPill({
           style={{
             color: c.text,
             fontWeight: "900",
-            fontSize: 13,
+            fontSize: 12,
             letterSpacing: 0.3,
           }}
         >

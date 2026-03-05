@@ -3,6 +3,7 @@ import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
 import TestProgressPill from "@/src/components/TestProgressPill";
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import TestAnswersAccordion from "@/src/components/test/TestAnswersAccordion";
+import TestHintsAccordion from "@/src/components/test/TestHintsAccordion";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
@@ -193,6 +194,7 @@ export default function TestMod1Screen() {
                         borderWidth: 1,
                         borderColor: c.borderStrong,
                         backgroundColor: c.card,
+                        marginBottom:10
                     }}
                 >
                     {questionUri ? (
@@ -215,6 +217,7 @@ export default function TestMod1Screen() {
                     )}
                 </View>
 
+                <TestHintsAccordion hints={current?.answers} />
                 <TestAnswersAccordion
                     answers={current?.answers}
                     onOpenImage={(uri) => openViewer(uri)}
