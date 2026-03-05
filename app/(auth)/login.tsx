@@ -27,6 +27,7 @@ import Animated, {
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { login, register } from "@/src/services/auth.service";
+import LottieView from "lottie-react-native";
 
 type TabIndex = 0 | 1;
 
@@ -82,6 +83,35 @@ export default function AuthScreen() {
   const [showRegPass, setShowRegPass] = useState(false);
   const [showRegPass2, setShowRegPass2] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  const [animDone, setAnimDone] = useState(false);
+
+  // Logo küçülme
+  const logoScale = useSharedValue(1); // 1 = büyük
+  const logoOpacity = useSharedValue(1);
+
+  // İçerik (tabs + form) giriş animasyonu
+  const contentT = useSharedValue(0); // 0 gizli, 1 açık
+
+  useEffect(() => {
+    if (!animDone) return;
+
+    // Logo küçülsün, biraz yukarı "otursun"
+    logoScale.value = withTiming(0.78, { duration: 420, easing: Easing.out(Easing.cubic) });
+
+    // İçerik gelsin
+    contentT.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
+  }, [animDone]);
+
+  const logoStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
+    opacity: logoOpacity.value,
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentT.value,
+    transform: [{ translateY: (1 - contentT.value) * 12 }], // 12px aşağıdan gelsin
+  }));
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -216,7 +246,7 @@ export default function AuthScreen() {
       {/* Light overlay: koyu mod hissini kırar */}
       <View
         pointerEvents="none"
-        style={{ ...StyleSheet.absoluteFillObject, backgroundColor: ui.background }}
+        style={{ ...StyleSheet.absoluteFillObject, }}
       />
 
       <KeyboardAvoidingView
@@ -231,23 +261,35 @@ export default function AuthScreen() {
             flexGrow: 1,
             paddingHorizontal: 16,
             paddingTop: 26,
-            paddingBottom: 22,
-            justifyContent: "center",
+            paddingBottom: 32,
+            justifyContent: "flex-start",
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Title */}
-          <Animated.View style={[{ alignItems: "center", marginBottom: 20 }, titleAnimStyle]}>
-            <Animated.Text
-              style={[
-                { fontSize: 26, fontWeight: "900", letterSpacing: 0.2 },
-                titleTextStyle,
-              ]}
-            >
-              Yanlış Defterim
-            </Animated.Text>
-          </Animated.View>
+          <View style={{ alignItems: "center", marginBottom: 8 }}>
+            {!animDone ? (
+              <LottieView
+                source={require("../../assets/logoAnimasyon.json")}
+                autoPlay
+                loop={false}
+                onAnimationFinish={() => setAnimDone(true)}
+                style={{ width: 240, height: 240 }}
+              />
+            ) : (
+              <Animated.View style={[logoStyle]}>
+                {/* Animasyon bittiğinde istersen statik logo göster */}
+                <LottieView
+                  source={require("../../assets/logoAnimasyon.json")}
+                  autoPlay={false}
+                  loop={false}
+                  progress={1} // son frame’de kalsın
+                  style={{ width: 240, height: 240 }}
+                />
+              </Animated.View>
+            )}
+          </View>
+
 
           {/* Segmented Tabs: title ile arası +5px daha ferah (üstte marginBottom zaten 20) */}
           <View
@@ -310,7 +352,7 @@ export default function AuthScreen() {
                 contentContainerStyle={{
                   paddingBottom: 14,
                   flexGrow: 1,
-                  // justifyContent:"center" KALDIRILDI -> boşluk problemini çözer
+
                 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
