@@ -52,6 +52,16 @@ export default function DailyFocusCard() {
         const w = weekdays[date.getDay()];
         return `${d} ${m} ${w}`;
     }
+    function formatLastAttemptTr(iso?: string) {
+        if (!iso) return null;
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+
+        const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) return "Bugün";
+        if (diffDays === 1) return "Dün";
+        return `${diffDays} gün önce`;
+    }
 
     const subtitle = useMemo(() => {
         if (!card) return "";
@@ -65,6 +75,7 @@ export default function DailyFocusCard() {
         if (!card) return null;
 
         const iconColor = c.mutedText;
+        const lastAttemptLabel = formatLastAttemptTr(card.meta?.lastAttemptAt);
 
         if (card.reason.kind === "starter") {
             return {
@@ -76,22 +87,30 @@ export default function DailyFocusCard() {
         if (card.reason.kind === "noRepeat") {
             return {
                 icon: <TimerReset size={16} color={iconColor} />,
-                text: `${card.reason.days} gündür tekrar yok (unutma riski yüksek)`,
+                text: lastAttemptLabel
+                    ? `Son tekrar: ${lastAttemptLabel} (unutma riski)`
+                    : `${card.reason.days} gündür tekrar yok (unutma riski yüksek)`,
+            };
+        }
+
+        if (card.reason.kind === "successRate") {
+            const extra = lastAttemptLabel ? ` • Son deneme: ${lastAttemptLabel}` : "";
+            return {
+                icon: <Flame size={16} color={"orange"} />,
+                text: `Genel başarı %${card.reason.rate}${extra}`,
             };
         }
 
         if (card.reason.kind === "lastResult") {
+            const lastText = card.reason.last === "unsolved" ? "Çözmedin" : "Çözdün";
+            const extra = lastAttemptLabel ? ` • ${lastAttemptLabel}` : "";
             return {
                 icon: <CircleAlert size={16} color={iconColor} />,
-                text: `Son deneme: ${card.reason.last === "unsolved" ? "Çözmedin" : "Çözdün"}`,
+                text: `Son deneme: ${lastText}${extra}`,
             };
         }
 
-        // successRate
-        return {
-            icon: <Flame size={16} color={iconColor} />,
-            text: `Son ${card.reason.windowDays} günde başarı %${card.reason.rate}`,
-        };
+        return null;
     }, [card, c.mutedText]);
 
     const cta = useMemo(() => {
@@ -156,31 +175,44 @@ export default function DailyFocusCard() {
                 </Text>
 
                 {!!reasonRow && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8,marginBottom:5, marginTop: 10 }}>
-                        {reasonRow.icon}
+                    <Pressable
+                        onPress={cta.onPress}
+                        style={({ pressed }) => ({
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 8,
+                            marginBottom: 5,
+                            marginTop: 10,
+                            opacity: pressed ? 0.85 : 1,
+                        })}
+                        hitSlop={6}
+                    >
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5, marginTop: 10 }}>
+                            {reasonRow.icon}
 
-                        <Text
-                            numberOfLines={1}
-                            style={{ color: c.mutedText, fontWeight: "700", flexShrink: 1 }}
-                        >
-                            {reasonRow.text}
-                        </Text>
-
-                        <View
-                            style={{
-                                marginLeft: "auto",
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 4,
-                            }}
-                        >
-                            <Text style={{ color: c.mutedText, fontWeight: "800", fontSize: 12 }}>
-                                Testi Başlat
+                            <Text
+                                numberOfLines={2}
+                                style={{ color: c.mutedText, fontWeight: "700", flexShrink: 1 }}
+                            >
+                                {reasonRow.text} 
                             </Text>
 
-                            <ChevronRight size={20} color={c.mutedText} />
+                            <View
+                                style={{
+                                    marginLeft: "auto",
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 4,
+                                }}
+                            >
+                                <Text style={{ color: c.mutedText, fontWeight: "800", fontSize: 12 }}>
+                                    Testi Başlat
+                                </Text>
+
+                                <ChevronRight size={20} color={c.mutedText} />
+                            </View>
                         </View>
-                    </View>
+                    </Pressable>
                 )}
 
                 <Pressable

@@ -3,12 +3,12 @@ import { auth, db } from "@/src/lib/firebase";
 import type { Question } from "@/src/types/question";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
 } from "firebase/firestore";
 
 function lessonsCol(uid: string) {
@@ -53,14 +53,14 @@ export type DailyFocusCard = {
   reason: FocusReason;
 
   ctaMode: "mod1" | "mod3";
-  // UI için:
+
   meta?: {
     daysSinceLastAttempt?: number;
     successRateAll?: number; // MVP: overall rate
     lastResult?: "solved" | "unsolved";
+    lastAttemptAt?: string; // ✅ ISO string
   };
 };
-
 function yyyyMmDd(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -221,7 +221,7 @@ export async function getDailyFocusCard(params?: {
   if (!user) throw new Error("Not authenticated");
 
   const dateKey = yyyyMmDd();
-  const cacheKey = `focus_card_v1_${dateKey}`;
+  const cacheKey = `focus_card_v2_${dateKey}`;
 
   const cached = await AsyncStorage.getItem(cacheKey);
   if (cached) {
@@ -273,6 +273,9 @@ export async function getDailyFocusCard(params?: {
         daysSinceLastAttempt: pick.daysSinceLastAttempt ?? undefined,
         successRateAll: pick.successRateAll ?? undefined,
         lastResult: pick.lastResult ?? undefined,
+        lastAttemptAt: pick.lastAttemptAt
+          ? pick.lastAttemptAt.toISOString()
+          : undefined, // ✅
       },
     };
 
@@ -288,14 +291,46 @@ export async function getDailyFocusCard(params?: {
 
   const pick =
     weakCandidates[0] ?? pool.find((p) => p.solvedAll + p.unsolvedAll > 0)!;
+
   const names = await hydrateNames(user.uid, pick.lessonId, pick.topicId);
 
-  const rate = Math.round(clamp01(pick.successRateAll ?? 0) * 100);
+  const rate01 = clamp01(pick.successRateAll ?? 0);
+  const rate = Math.round(rate01 * 100);
 
-  // reason önceliği: ister rate, ister lastResult gösterebilirsin.
-  // Senin metin: “Son 7 günde başarı %X” veya “Son deneme: Çözemedin”
-  // MVP: overall rate -> “Başarı %X”
-  let reason: FocusReason = { kind: "successRate", rate, windowDays: 7 };
+  const lastAttemptIso = pick.lastAttemptAt
+    ? pick.lastAttemptAt.toISOString()
+    : undefined;
+
+  // ✅ Akıllı kural: zayıf + uzun süredir denenmemiş => Mod3 (unutma riski)
+  // - eşikler: rate <= 55 ve daysSince >= 7
+  // İstersen bu değerleri sonra oynarız.
+  const ds = pick.daysSinceLastAttempt ?? null;
+  const shouldSwitchToMod3 = ds !== null && ds >= 7 && rate <= 55;
+
+  if (shouldSwitchToMod3) {
+    const card: DailyFocusCard = {
+      dateKey,
+      lessonId: pick.lessonId,
+      topicId: pick.topicId,
+      lessonName: names.lessonName,
+      topicName: names.topicName,
+      focusType: "forget_risk",
+      reason: { kind: "noRepeat", days: ds },
+      ctaMode: "mod3",
+      meta: {
+        daysSinceLastAttempt: pick.daysSinceLastAttempt ?? undefined,
+        successRateAll: pick.successRateAll ?? undefined,
+        lastResult: pick.lastResult ?? undefined,
+        lastAttemptAt: lastAttemptIso,
+      },
+    };
+
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(card));
+    return card;
+  }
+
+  // reason: başarı veya son sonuç
+  let reason: FocusReason = { kind: "successRate", rate, windowDays: 0 }; // windowDays UI'da artık kullanılmayacak
   if (pick.lastResult === "unsolved") {
     reason = { kind: "lastResult", last: "unsolved" };
   }
@@ -313,6 +348,7 @@ export async function getDailyFocusCard(params?: {
       daysSinceLastAttempt: pick.daysSinceLastAttempt ?? undefined,
       successRateAll: pick.successRateAll ?? undefined,
       lastResult: pick.lastResult ?? undefined,
+      lastAttemptAt: lastAttemptIso,
     },
   };
 
