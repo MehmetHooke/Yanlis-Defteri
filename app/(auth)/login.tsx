@@ -104,6 +104,7 @@ export default function AuthScreen() {
   }, [animDone]);
 
   const logoStyle = useAnimatedStyle(() => ({
+    marginBottom:-48,
     transform: [{ scale: logoScale.value }],
     opacity: logoOpacity.value,
   }));
@@ -267,14 +268,14 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ alignItems: "center", marginBottom: 8 }}>
+          <View style={{ alignItems: "center", marginBottom: -48 }}>
             {!animDone ? (
               <LottieView
                 source={require("../../assets/logoAnimasyon.json")}
                 autoPlay
                 loop={false}
                 onAnimationFinish={() => setAnimDone(true)}
-                style={{ width: 240, height: 240 }}
+                style={{ width: 340, height: 340,marginBottom:-38 }}
               />
             ) : (
               <Animated.View style={[logoStyle]}>
@@ -284,7 +285,7 @@ export default function AuthScreen() {
                   autoPlay={false}
                   loop={false}
                   progress={1} // son frame’de kalsın
-                  style={{ width: 240, height: 240 }}
+                  style={{ width: 340, height: 340  }}
                 />
               </Animated.View>
             )}
