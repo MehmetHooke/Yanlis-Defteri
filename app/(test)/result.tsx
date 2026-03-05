@@ -1,6 +1,7 @@
 // app/(tabs)/test/result.tsx
 import { useTheme } from "@/src/context/ThemeContext";
 import { router, useLocalSearchParams } from "expo-router";
+import { CheckCircle2 } from "lucide-react-native";
 import { ImageBackground, Pressable, Text, View } from "react-native";
 
 export default function TestResultScreen() {
@@ -17,14 +18,50 @@ export default function TestResultScreen() {
   const s = Number(solved ?? "0");
   const rate = t > 0 ? Math.round((s / t) * 100) : 0;
 
+  const modeTitle =
+    mode === "mod1"
+      ? "Zayıf Nokta Testi"
+      : mode === "mod2"
+      ? "Karma Tekrar"
+      : mode === "mod3"
+      ? "Kalıcılık Kontrolü"
+      : "Test";
+
+  const modeDesc =
+    mode === "mod1"
+      ? "En çok zorlandığın sorulara odaklandın. Düzenli çözüm, zayıf noktalarını hızlı kapatır."
+      : mode === "mod2"
+      ? "Zayıf/orta/güçlü karışık tekrar yaptın. Bu mod hem toparlar hem moral verir."
+      : mode === "mod3"
+      ? "Unutma riski olan konuları tazeledin. Aralıklı tekrar kalıcılığı artırır."
+      : "Testi bitirdin.";
+
+  const replayPath =
+    mode === "mod1"
+      ? "/(test)/mod1"
+      : mode === "mod2"
+      ? "/(test)/mod2"
+      : mode === "mod3"
+      ? "/(test)/mod3"
+      : "/(test)";
+
+  const level =
+    rate >= 80 ? "Harika" : rate >= 50 ? "İyi" : "Geliştirilebilir";
+
+  const empty = t <= 0;
+
   return (
     <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 18, paddingTop: 70 }}>
-        <Text style={{ color: c.text, fontSize: 22, fontWeight: "900" }}>
-          Test Bitti 🎉
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <CheckCircle2 size={22} color={c.accent} />
+          <Text style={{ color: c.text, fontSize: 22, fontWeight: "900" }}>
+            Test Bitti
+          </Text>
+        </View>
+
         <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-          {mode === "mod1" ? "Zayıf Nokta Sınavını bitirdiniz" : "Test"}
+          {modeTitle} tamamlandı
         </Text>
 
         <View
@@ -37,22 +74,44 @@ export default function TestResultScreen() {
             padding: 16,
           }}
         >
-          <Text style={{ color: c.mutedText, fontWeight: "800" }}>Başarı Oranı</Text>
-          <Text style={{ color: c.text, fontSize: 34, fontWeight: "900", marginTop: 6 }}>
-            %{rate}
-          </Text>
-          <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-            {s} / {t} çözdün
+          <Text style={{ color: c.accent, fontWeight: "800" }}>
+            Başarı Oranı
           </Text>
 
+          <Text
+            style={{
+              color: c.text,
+              fontSize: 34,
+              fontWeight: "900",
+              marginTop: 6,
+            }}
+          >
+            {empty ? "—" : `%${rate}`}
+          </Text>
+
+          <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
+            Toplam {t} sorudan {s} adet doğru çözdün
+          </Text>
+
+          {!empty ? (
+            <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "800" }}>
+             
+              <Text style={{ color: c.accent, fontWeight: "900" }}>{level}</Text>
+               {" "} sonuç elde ettin
+            </Text>
+          ) : null}
+
           <Text style={{ color: c.mutedText, marginTop: 10 }}>
-            Buradaki sorular çözemediğiniz sorulara göre sürekli olarak şekillenir.Düzenli olarak çözmek eksiğinizi kapatmanıza yarar.
+            {empty
+              ? "Bu test için yeterli soru bulunamadı. Daha fazla soru ekledikçe testler kişiselleşir."
+              : modeDesc}
           </Text>
         </View>
 
         <View style={{ marginTop: 14, gap: 10 }}>
+          {/* ✅ Primary: Tekrar Çöz */}
           <Pressable
-            onPress={() => router.replace("/(test)")}
+            onPress={() => router.replace(replayPath as any)}
             style={{
               borderRadius: 16,
               paddingVertical: 14,
@@ -61,6 +120,23 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.buttonText, fontWeight: "900" }}>
+              Tekrar Çöz
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/(test)")}
+            style={{
+              borderRadius: 16,
+              paddingVertical: 14,
+              alignItems: "center",
+              backgroundColor: c.card,
+              marginTop:4,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
+            }}
+          >
+            <Text style={{ color: c.text, fontWeight: "900" }}>
               Yeni Test Seç
             </Text>
           </Pressable>

@@ -224,7 +224,7 @@ export default function HomeScreen() {
           <Text
             style={[
               styles.cardTitle,
-              { color: highlight ? c.buttonText : c.text },
+              { color: highlight ? c.text : c.text },
             ]}
           >
             {title}
@@ -238,7 +238,7 @@ export default function HomeScreen() {
               styles.cardSub,
               {
                 marginTop: 6,
-                color: highlight ? "rgba(255,255,255,0.85)" : c.mutedText,
+                color: highlight ? c.mutedText : c.mutedText,
               },
             ]}
           >
@@ -258,7 +258,7 @@ export default function HomeScreen() {
             <Text
               style={{
                 fontWeight: "700",
-                color: highlight ? c.buttonText : c.accent,
+                color: highlight ? c.accent : c.accent,
               }}
             >
               {actionText}
@@ -267,7 +267,7 @@ export default function HomeScreen() {
             <View style={{ marginLeft: "auto" }}>
               <ChevronRight
                 size={22}
-                color={highlight ? c.buttonText : c.mutedText}
+                color={highlight ? c.accent : c.mutedText}
               />
             </View>
           </View>
