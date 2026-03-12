@@ -319,7 +319,7 @@ export default function TestSelectScreen() {
 
   const [onboardOpen, setOnboardOpen] = useState(false);
 
- const alert = useAppAlert();
+  const alert = useAppAlert();
 
   useTestExitToHomeOnBack({
     alert,
@@ -393,6 +393,14 @@ export default function TestSelectScreen() {
           icon={<Timer size={18} color={c.accent} />}
           rightHint={lowHint}
           onPress={() => router.push("/(test)/mod3")}
+        />
+
+        <ModeCard
+          title="Test Sınavı"
+          desc="Şıklı sorulardan oluşan 5 soruluk karma test."
+          icon={<Timer size={18} color={c.accent} />}
+          rightHint={lowHint}
+          onPress={() => router.push("/(test)/mod4")}
         />
       </View>
 

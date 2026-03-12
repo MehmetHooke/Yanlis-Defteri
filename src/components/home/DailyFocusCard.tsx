@@ -124,7 +124,7 @@ export default function DailyFocusCard() {
                         pathname: "/(test)/mod3" as any,
                         params: card.lessonId && card.topicId ? { lessonId: card.lessonId, topicId: card.topicId } : {},
                     }),
-                icon: <CalendarClock size={18} color={c.buttonText} />,
+                icon: <CalendarClock size={18} color={c.accent} />,
             };
         }
 
@@ -140,7 +140,7 @@ export default function DailyFocusCard() {
     }, [card, c.buttonText]);
 
     return (
-        <View style={{ marginTop: 12 }}>
+        <View style={{ marginTop: 12 }} className="bg-black">
             <LinearGradient
                 colors={theme.lessonCard.gradient}
                 start={{ x: 0, y: 0 }}
@@ -240,7 +240,7 @@ export default function DailyFocusCard() {
                         <Text
                             numberOfLines={1}
                             style={{
-                                color: c.buttonText,
+                                color: c.text,
                                 fontWeight: "900",
                             }}
                         >
