@@ -1,6 +1,6 @@
 // src/services/test.service.ts
 import { auth, db } from "@/src/lib/firebase";
-import type { Question } from "@/src/types/question";
+import type { Answer, Question } from "@/src/types/question";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 function lessonsCol(uid: string) {
@@ -564,4 +564,76 @@ export async function getMod3RetentionQuestionsForTopic(params: {
   }
 
   return picked;
+}
+
+// --------------------- / MOD 4 / -------------------------------
+
+function getCorrectChoice(q: Question): "A" | "B" | "C" | "D" | "E" | null {
+  const choiceAnswer = q.answers?.find(
+    (a): a is Extract<Answer, { kind: "choice" }> =>
+      a.kind === "choice" && !!a.choice,
+  );
+
+  return choiceAnswer?.choice ?? null;
+}
+
+function isValidMod4Question(q: Question) {
+  return !!getCorrectChoice(q);
+}
+
+/**
+ * Mod4 (Test Sınavı):
+ * - sadece doğru şıkkı tanımlanmış choice soruları alır
+ * - havuzdan rastgele 5 soru seçer
+ */
+export async function getMod4ChoiceQuestions(params?: {
+  take?: number;
+  poolLimit?: number;
+}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const take = params?.take ?? 5;
+  const poolLimit = params?.poolLimit ?? 220;
+
+  const lSnap = await getDocs(
+    query(lessonsCol(user.uid), orderBy("lastActivityAt", "desc")),
+  );
+  const lessonIds = lSnap.docs.map((d) => d.id);
+
+  const pool: Question[] = [];
+
+  for (const lessonId of lessonIds) {
+    const tSnap = await getDocs(
+      query(topicsCol(user.uid, lessonId), orderBy("lastActivityAt", "desc")),
+    );
+    const topicIds = tSnap.docs.map((d) => d.id);
+
+    for (const topicId of topicIds) {
+      const qSnap = await getDocs(
+        query(
+          questionsCol(user.uid, lessonId, topicId),
+          orderBy("createdAt", "desc"),
+        ),
+      );
+
+      for (const d of qSnap.docs) {
+        const q = { ...(d.data() as any), id: d.id } as Question;
+
+        if (isValidMod4Question(q)) {
+          pool.push(q);
+        }
+
+        if (pool.length >= poolLimit) break;
+      }
+
+      if (pool.length >= poolLimit) break;
+    }
+
+    if (pool.length >= poolLimit) break;
+  }
+
+  if (pool.length < take) return [];
+
+  return shuffle(pool).slice(0, take);
 }

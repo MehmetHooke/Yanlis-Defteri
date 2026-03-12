@@ -1,14 +1,19 @@
 // src/services/attempt.service.ts
 import { auth, db } from "@/src/lib/firebase";
 import {
-    collection,
-    doc,
-    increment,
-    runTransaction,
-    serverTimestamp,
+  collection,
+  doc,
+  increment,
+  runTransaction,
+  serverTimestamp,
 } from "firebase/firestore";
 
-export type AttemptSource = "normal" | "test_mod1" | "test_mod2" | "test_mod3";
+export type AttemptSource =
+  | "normal"
+  | "test_mod1"
+  | "test_mod2"
+  | "test_mod3"
+  | "test_mod4";
 
 export type AttemptResult = "solved" | "unsolved";
 
