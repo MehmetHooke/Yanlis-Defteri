@@ -6,12 +6,19 @@ import {
     Image,
     ImageBackground,
     Linking,
+    Platform,
     Pressable,
     ScrollView,
+    Switch,
     Text,
     TextInput,
     View
 } from "react-native";
+
+import {
+    DateTimePickerAndroid,
+    type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 import { auth, db } from "@/src/lib/firebase";
 import {
@@ -26,7 +33,14 @@ import { router } from "expo-router";
 
 import { useAppAlert } from "@/src/components/common/AppAlertProvider";
 import { doc, getDoc } from "firebase/firestore";
-import { ChevronDown, ChevronUp, Laptop, Lock, LogOut, Moon, Settings, Sun } from "lucide-react-native";
+import { BellRing, ChevronDown, ChevronUp, Laptop, Lock, LogOut, Moon, Settings, Sun } from "lucide-react-native";
+
+import {
+    cancelDailyReminder,
+    getReminderSettings,
+    requestNotificationPermission,
+    scheduleDailyReminder
+} from "@/src/services/notification.service";
 
 const PLAY_URL =
     "https://play.google.com/store/apps/details?id=com.mehmethooke.yanlisdefteri";
@@ -126,6 +140,15 @@ export default function SettingsScreen() {
     const [newPass2, setNewPass2] = useState("");
     const [saving, setSaving] = useState(false);
 
+    const [notifEnabled, setNotifEnabled] = useState(false);
+    const [notifHour, setNotifHour] = useState(20);
+    const [notifMinute, setNotifMinute] = useState(0);
+    const [notifLoading, setNotifLoading] = useState(true);
+    const [notifSaving, setNotifSaving] = useState(false);
+
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+
+
     useEffect(() => {
         let cancelled = false;
 
@@ -152,6 +175,29 @@ export default function SettingsScreen() {
             cancelled = true;
         };
     }, [user?.uid]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const settings = await getReminderSettings();
+                if (cancelled) return;
+
+                setNotifEnabled(settings.enabled);
+                setNotifHour(settings.hour);
+                setNotifMinute(settings.minute);
+            } catch (e) {
+                console.log("notification settings load error:", e);
+            } finally {
+                if (!cancelled) setNotifLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
 
     // Accordion
@@ -277,6 +323,105 @@ export default function SettingsScreen() {
         }
     };
 
+    const onToggleReminder = async (nextValue: boolean) => {
+        if (notifSaving) return;
+
+        setNotifSaving(true);
+
+        try {
+            if (nextValue) {
+                const granted = await requestNotificationPermission();
+
+                if (!granted) {
+                    alert(
+                        "Bildirim İzni Gerekli",
+                        "Günlük hatırlatma gönderebilmem için bildirim izni vermen gerekiyor."
+                    );
+                    setNotifEnabled(false);
+                    return;
+                }
+
+                await scheduleDailyReminder(notifHour, notifMinute);
+                setNotifEnabled(true);
+
+                alert(
+                    "Hatırlatma Açıldı",
+                    `Her gün ${pad2(notifHour)}:${pad2(notifMinute)} saatinde bildirim göndereceğim.`
+                );
+            } else {
+                await cancelDailyReminder();
+                setNotifEnabled(false);
+
+                alert(
+                    "Hatırlatma Kapatıldı",
+                    "Günlük bildirim hatırlatması kapatıldı."
+                );
+            }
+        } catch (e) {
+            console.log("toggle reminder error:", e);
+            alert("Hata", "Bildirim ayarı güncellenemedi.");
+        } finally {
+            setNotifSaving(false);
+        }
+    };
+
+    const openTimePicker = () => {
+        if (!notifEnabled || notifSaving) return;
+
+        const current = new Date();
+        current.setHours(notifHour);
+        current.setMinutes(notifMinute);
+        current.setSeconds(0);
+        current.setMilliseconds(0);
+
+        if (Platform.OS === "android") {
+            DateTimePickerAndroid.open({
+                value: current,
+                mode: "time",
+                is24Hour: true,
+                onChange: async (
+                    event: DateTimePickerEvent,
+                    selectedDate?: Date
+                ) => {
+                    if (event.type !== "set" || !selectedDate) return;
+
+                    const nextHour = selectedDate.getHours();
+                    const nextMinute = selectedDate.getMinutes();
+
+                    setNotifHour(nextHour);
+                    setNotifMinute(nextMinute);
+
+                    if (!notifEnabled) return;
+
+                    setNotifSaving(true);
+                    try {
+                        const granted = await requestNotificationPermission();
+
+                        if (!granted) {
+                            alert(
+                                "Bildirim İzni Gerekli",
+                                "Hatırlatma gönderebilmem için bildirim izni vermen gerekiyor."
+                            );
+                            return;
+                        }
+
+                        await scheduleDailyReminder(nextHour, nextMinute);
+
+                        alert(
+                            "Saat Güncellendi",
+                            `Yeni hatırlatma saati ${pad2(nextHour)}:${pad2(nextMinute)} olarak kaydedildi.`
+                        );
+                    } catch (e) {
+                        console.log("openTimePicker save error:", e);
+                        alert("Hata", "Hatırlatma saati güncellenemedi.");
+                    } finally {
+                        setNotifSaving(false);
+                    }
+                },
+            });
+        }
+    };
+
     const onLogout = async () => {
 
         confirm({
@@ -303,28 +448,28 @@ export default function SettingsScreen() {
         <ImageBackground source={theme.bgImage} style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 60, paddingBottom: 110 }}>
                 {/* Başlık - boşluk azaltıldı */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 14,
-              backgroundColor: c.tabActiveBg,
-              borderWidth: 1,
-              borderColor: c.border,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Settings size={20} color={c.accent} strokeWidth={2} />
-          </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                        style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 14,
+                            backgroundColor: c.tabActiveBg,
+                            borderWidth: 1,
+                            borderColor: c.border,
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Settings size={20} color={c.accent} strokeWidth={2} />
+                    </View>
 
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
-              Ayarlar
-            </Text>
-          </View>
-        </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>
+                            Ayarlar
+                        </Text>
+                    </View>
+                </View>
 
                 {/* Profil */}
                 <Section title="PROFİL">
@@ -344,7 +489,7 @@ export default function SettingsScreen() {
                                 <Image source={{ uri: photoURL }} style={{ width: 54, height: 54 }} />
                             ) : (
                                 <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                                    <Text style={{fontSize:22, color: c.accent, fontWeight: "800" }}>
+                                    <Text style={{ fontSize: 22, color: c.accent, fontWeight: "800" }}>
                                         {displayName?.slice(0, 1)?.toUpperCase() || "U"}
                                     </Text>
                                 </View>
@@ -485,6 +630,173 @@ export default function SettingsScreen() {
                             onPress={() => setPreference("dark")}
                             icon={<Moon size={16} color={c.mutedText} />}
                         />
+                    </View>
+                </Section>
+
+                <Section title="BİLDİRİMLER">
+                    <View style={cardStyle}>
+                        {notifLoading ? (
+                            <ActivityIndicator />
+                        ) : (
+                            <>
+                                <View
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 12,
+                                    }}
+                                >
+                                    <View style={{ flex: 1 }}>
+                                        <Text
+                                            style={{
+                                                color: c.text,
+                                                fontWeight: "800",
+                                                fontSize: 14,
+                                            }}
+                                        >
+                                            Günlük Hatırlatma
+                                        </Text>
+
+                                        <Text
+                                            style={{
+                                                color: c.mutedText,
+                                                fontSize: 12,
+                                                marginTop: 4,
+                                                lineHeight: 18,
+                                            }}
+                                        >
+                                            Her gün belirlediğin saatte yanlışlarını gözden geçirmen için hatırlatma bildirimi gönderilir.
+                                        </Text>
+                                    </View>
+
+                                    <Switch
+                                        value={notifEnabled}
+                                        onValueChange={onToggleReminder}
+                                        disabled={notifSaving}
+                                        trackColor={{
+                                            false: c.borderStrong,
+                                            true: c.accent,
+                                        }}
+                                        thumbColor="#fff"
+                                    />
+                                </View>
+
+                                <View
+                                    style={{
+                                        marginTop: 14,
+                                        opacity: notifEnabled ? 1 : 0.45,
+                                    }}
+                                    pointerEvents={notifEnabled ? "auto" : "none"}
+                                >
+                                    <Text
+                                        style={{
+                                            color: c.mutedText,
+                                            fontSize: 12,
+                                            marginBottom: 10,
+                                            fontWeight: "700",
+                                        }}
+                                    >
+                                        Bildirim Saati
+                                    </Text>
+
+                                    <Pressable
+                                        onPress={openTimePicker}
+                                        disabled={!notifEnabled || notifSaving}
+                                        style={{
+                                            backgroundColor: c.inputBg,
+                                            borderWidth: 1,
+                                            borderColor: c.border,
+                                            borderRadius: 16,
+                                            paddingHorizontal: 14,
+                                            paddingVertical: 14,
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <View
+                                            style={{
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                gap: 12,
+                                            }}
+                                        >
+                                            {/* ICON */}
+                                            <View
+                                                style={{
+                                                    width: 42,
+                                                    height: 42,
+                                                    borderRadius: 999,
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    backgroundColor: c.tabActiveBg,
+                                                    borderWidth: 1,
+                                                    borderColor: c.border,
+                                                }}
+                                            >
+                                                <BellRing size={18} color={c.accent} />
+                                            </View>
+
+                                            {/* TEXT */}
+                                            <View>
+                                                <Text
+                                                    style={{
+                                                        color: c.mutedText,
+                                                        fontSize: 12,
+                                                        marginBottom: 4,
+                                                    }}
+                                                >
+                                                    Bildirim saati
+                                                </Text>
+
+                                                <Text
+                                                    style={{
+                                                        color: c.text,
+                                                        fontSize: 24,
+                                                        fontWeight: "800",
+                                                    }}
+                                                >
+                                                    {pad2(notifHour)}:{pad2(notifMinute)}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <View
+                                            style={{
+                                                paddingHorizontal: 12,
+                                                paddingVertical: 8,
+                                                borderRadius: 999,
+                                                backgroundColor: c.tabActiveBg,
+                                                borderWidth: 1,
+                                                borderColor: c.border,
+                                            }}
+                                        >
+                                            <Text
+                                                style={{
+                                                    color: c.accent,
+                                                    fontWeight: "800",
+                                                    fontSize: 12,
+                                                }}
+                                            >
+                                                Değiştir
+                                            </Text>
+                                        </View>
+                                    </Pressable>
+
+                                    <Text
+                                        style={{
+                                            color: c.mutedText,
+                                            fontSize: 12,
+                                            marginTop: 10,
+                                            lineHeight: 18,
+                                        }}
+                                    >
+                                        Her gün bu saatte hatırlatma bildirimi gönderilir.
+                                    </Text>
+                                </View>
+                            </>
+                        )}
                     </View>
                 </Section>
 
