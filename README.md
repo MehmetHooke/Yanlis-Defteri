@@ -1,50 +1,178 @@
-# Welcome to your Expo app 👋
+# Yanlis Defteri
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Yanlis Defteri, ogrencilerin yanlis yaptigi sorulari ders ve konu bazinda arsivleyip daha sonra tekrar edebilmesi icin gelistirilmis bir mobil uygulamadir. Uygulama Expo + React Native uzerine kuruludur; kullanici girisi, veri saklama, gorsel yukleme ve tekrar/test mantigi icin Firebase kullanir.
 
-## Get started
+Bu proje; soru ekleme, soru cozumlerini kaydetme, performansa gore akilli testler olusturma, tema secimi ve gunluk hatirlatma gibi ozellikler sunar.
 
-1. Install dependencies
+## Ozellikler
 
-   ```bash
-   npm install
-   ```
+- Firebase Authentication ile kayit olma ve giris yapma
+- Ilk acilista onboarding akisi
+- Ders > konu > soru hiyerarsisi ile kisisel soru arsivi
+- Foto veya metin tabanli soru ekleme
+- 3'e kadar cozum karti ekleyebilme:
+  - sik bazli cozum
+  - gorsel cozum
+  - metin cozum
+- Firebase Storage uzerine gorsel yukleme
+- Sorulari duzenleme, yeniden siniflandirma ve silme
+- Acik / koyu / sistem temasi destegi
+- Gunluk tekrar icin yerel bildirim planlama
+- Kullanim verisine gore kisisellesen test modlari
 
-2. Start the app
+## Test Modlari
 
-   ```bash
-   npx expo start
-   ```
+Uygulamada soru davranislarina gore olusan 4 farkli test modu bulunur:
 
-In the output, you'll find options to open the app in a
+1. Zayif Nokta Testi
+   En cok `cozemedim` isaretlenen sorulari one cikarir.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+2. Karma Tekrar
+   Zayif, orta ve guclu sorulari karisik getirerek toparlayici bir tekrar akisi sunar.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+3. Kalicilik Kontrolu
+   Daha once cozulmus ve uzerinden belli bir sure gecmis sorulari tekrar ettirir.
 
-## Get a fresh project
+4. Test Sinavi
+   Dogru sikki tanimlanmis secmeli sorulardan 5 soruluk mini sinav olusturur.
 
-When you're ready, run:
+Bu modlar, soru bazinda tutulan `solvedCount`, `unsolvedCount`, `lastResult` ve `lastAttemptAt` gibi metrikleri kullanir.
+
+## Teknoloji Yigini
+
+- Expo
+- React Native
+- TypeScript
+- Expo Router
+- Firebase Auth
+- Cloud Firestore
+- Firebase Storage
+- Expo Notifications
+- Expo Image Picker
+- NativeWind
+- React Native Reanimated
+- Lucide React Native
+
+## Proje Yapisi
+
+```text
+app/
+  (auth)/          Giris ve kayit ekranlari
+  (tabs)/          Ana sekmeler: anasayfa, sorular, ekleme, ayarlar
+  (test)/          Test modlari ve sonuc ekranlari
+  onboarding/      Ilk kullanim akisi
+src/
+  components/      Ortak UI bilesenleri
+  context/         Tema ve uygulama baglamlari
+  lib/             Firebase kurulumu
+  services/        Auth, soru, test, bildirim, attempt servisleri
+  types/           TypeScript veri tipleri
+assets/
+  images/          Uygulama gorselleri
+```
+
+## Veri Modeli
+
+Firestore tarafinda temel yapi kullanici bazlidir:
+
+```text
+users/{userId}
+  lessons/{lessonId}
+    topics/{topicId}
+      questions/{questionId}
+  attempts/{attemptId}
+```
+
+Soru dokumanlari; soru govdesi, cozum kartlari ve test metriklerini bir arada tutar. Gorsel kullanan sorular ve cevaplar Firebase Storage'a yuklenir, Firestore'da ise URL ve path bilgileri saklanir.
+
+## Kurulum
+
+### Gereksinimler
+
+- Node.js
+- npm
+- Expo CLI kullanimi icin Expo ekosistemi
+- Firebase projesi
+
+### Adimlar
+
+1. Depoyu klonlayin:
 
 ```bash
+git clone <repo-url>
+cd yanlis-defteri
+```
+
+2. Bagimliliklari kurun:
+
+```bash
+npm install
+```
+
+3. Kendi `.env` dosyanizi olusturun ve Firebase degiskenlerini ekleyin:
+
+```env
+EXPO_PUBLIC_FIREBASE_API_KEY=
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=
+```
+
+4. Uygulamayi baslatin:
+
+```bash
+npm run start
+```
+
+Platform bazli komutlar:
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+## Bildirimler
+
+Uygulama, gunluk tekrar hatirlatmasi icin `expo-notifications` kullanir. Ayarlar ekranindan:
+
+- bildirimler acilip kapatilabilir
+- saat secilebilir
+- mevcut planlanmis bildirim iptal edilebilir
+
+Android tarafinda ayrica bir bildirim kanali tanimlanmistir.
+
+## Tema Sistemi
+
+Tema tercihleri hem cihazda hem de kullanici dokumaninda saklanir:
+
+- `system`
+- `light`
+- `dark`
+
+Boylece kullanici farkli cihazlarda da tercihine daha yakin bir deneyim alir.
+
+## Kullanilan NPM Scriptleri
+
+```bash
+npm run start
+npm run android
+npm run ios
+npm run web
+npm run lint
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Gelistirme Notlari
 
-## Learn more
+- Routing yapisi `expo-router` ile dosya tabanli olarak kurulmustur.
+- Kimlik dogrulama durumu acilis ekraninda kontrol edilerek uygun akisa yonlendirme yapilir.
+- Soru silme islemlerinde bagli attempt kayitlari ve Storage dosyalari da temizlenir.
+- Test sistemi, kullanicinin soru gecmisine gore zamanla daha anlamli hale gelir.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Durum
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Bu proje aktif gelistirme altindadir. Kod tabaninda hem urun mantigi hem de arayuz iyilestirmeleri devam etmektedir.
