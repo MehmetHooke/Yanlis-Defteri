@@ -218,7 +218,7 @@ function TestQualityCard({
     if (stats.totalAttempts < 15) {
       return "Çözdüm/Çözemedim işaretlemelerini artır, motor hızlıca öğrenir.";
     }
-    return "Harika. Karma Tekrar ve Kalıcılık Kontrolü artık gerçekten kişisel çalışır.";
+    return "Harika.Tüm testler artık gerçekten kişisel çalışır.";
   }, [stats]);
 
   return (
@@ -319,10 +319,10 @@ export default function TestSelectScreen() {
 
   const [onboardOpen, setOnboardOpen] = useState(false);
 
-  const alert = useAppAlert();
+  const api = useAppAlert();
 
   useTestExitToHomeOnBack({
-    alert,
+    api,
     goHome: () => router.replace("/(tabs)"),
     title: "Anasayfaya dönüyorsun",
     message: "Testten çıkıp anasayfaya dönmek istiyor musun?",
