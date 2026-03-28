@@ -1,5 +1,19 @@
+import DailyFocusCard from "@/src/components/home/DailyFocusCard";
+import { useTheme } from "@/src/context/ThemeContext";
+import { auth } from "@/src/lib/firebase";
+import { getDailyReviewStreak } from "@/src/services/daily-review.service";
+import { getUserLessons } from "@/src/services/question.service";
+import type { Lesson } from "@/src/types/lesson";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import {
+  Book,
+  BookOpen,
+  ChevronRight,
+  Layers,
+  LibraryBig,
+  Plus,
+} from "lucide-react-native";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -7,53 +21,25 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import { useTheme } from "@/src/context/ThemeContext";
-import { auth } from "@/src/lib/firebase";
-import { getUserLessons } from "@/src/services/question.service";
-import type { Lesson } from "@/src/types/lesson";
-
-import DailyFocusCard from "@/src/components/home/DailyFocusCard";
-import { Book, BookOpen, ChevronRight, Layers, LibraryBig, Plus } from "lucide-react-native";
-
-/**
- * ✅ Route'lar
- * - ADD: soru ekleme ekranın neredeyse onu yaz
- * - LESSONS: "derslerim sayfası" hangi route ise onu yaz
- */
-const ADD_ROUTE = "/(tabs)/add";
-const LESSONS_ROUTE = "/(tabs)/questions"; // <- dersler sayfan buysa kalsın, değilse değiştir
 
 export default function HomeScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-
   const user = auth.currentUser;
+  const userId = user?.uid;
 
   const [loading, setLoading] = useState(true);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [dailyStreak, setDailyStreak] = useState(0);
 
-  // küçük illüstrasyon (opsiyonel)
-  const illustration = useMemo(() => {
-    try {
-      return require("@/assets/images/examphoto.png");
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // ✅ totals: lesson dokümanlarından güvenli hesap
-  const totals = useMemo(() => {
-    const totalLessons = lessons.length;
-    const totalQuestions = lessons.reduce(
-      (acc, l) => acc + (l.questionCount ?? 0),
-      0
-    );
-    return { totalLessons, totalQuestions };
-  }, [lessons]);
+  const totalLessons = lessons.length;
+  const totalQuestions = lessons.reduce(
+    (acc, lesson) => acc + (lesson.questionCount ?? 0),
+    0,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -61,13 +47,13 @@ export default function HomeScreen() {
     async function load() {
       try {
         setLoading(true);
-        if (!user) {
+        if (!userId) {
           if (!cancelled) setLessons([]);
           return;
         }
 
-        const ls = await getUserLessons(user.uid);
-        if (!cancelled) setLessons(ls);
+        const nextLessons = await getUserLessons(userId);
+        if (!cancelled) setLessons(nextLessons);
       } catch (e) {
         console.log("Home load error:", e);
         if (!cancelled) setLessons([]);
@@ -80,104 +66,80 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user?.uid]);
+  }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const streak = await getDailyReviewStreak();
+        if (!cancelled) setDailyStreak(streak.current);
+      } catch (e) {
+        console.log("Daily streak load error:", e);
+        if (!cancelled) setDailyStreak(0);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const GridCard = ({
     title,
     value,
     subtitle,
     icon,
-    onPress,
-    highlight = false,
   }: {
     title: string;
     value?: string;
     subtitle?: string;
     icon: React.ReactNode;
-    onPress?: () => void;
-    highlight?: boolean;
   }) => {
-    const body = (
+    return (
       <View
         style={[
           styles.gridCard,
           {
-            backgroundColor: highlight ? c.buttonBg : c.card,
-            borderColor: highlight ? "transparent" : c.accent,
+            backgroundColor: c.card,
+            borderColor: c.accent,
           },
         ]}
       >
-        {/* icon + title aynı satır */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
             style={[
               styles.iconPill,
               {
-                backgroundColor: highlight
-                  ? "rgba(255,255,255,0.15)"
-                  : c.tabActiveBg,
-                borderColor: highlight
-                  ? "rgba(255,255,255,0.2)"
-                  : c.border,
+                backgroundColor: c.tabActiveBg,
+                borderColor: c.border,
               },
             ]}
           >
             {icon}
           </View>
 
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: highlight ? c.buttonText : c.text },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.cardTitle, { color: c.text }]} numberOfLines={1}>
             {title}
           </Text>
         </View>
 
-        {/* value + subtitle alt alta */}
-        <View style={{ marginTop: 2 }} className="">
+        <View style={{ marginTop: 2 }}>
           {!!value && (
-            <Text
-              style={[
-                styles.cardValue,
-                { color: highlight ? c.buttonText : c.text },
-              ]}
-            >
-              {value}
-            </Text>
+            <Text style={[styles.cardValue, { color: c.text }]}>{value}</Text>
           )}
 
           {!!subtitle && (
-            <Text
-              style={[
-                styles.cardSub,
-                {
-                  color: highlight ? "rgba(255,255,255,0.85)" : c.mutedText,
-                },
-              ]}
-            >
+            <Text style={[styles.cardSub, { color: c.mutedText }]}>
               {subtitle}
             </Text>
           )}
         </View>
       </View>
     );
-
-    if (!onPress) return body;
-
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
-      >
-        {body}
-      </Pressable>
-    );
   };
 
-  //gridv2
   const GridCardV2 = ({
     title,
     description,
@@ -198,47 +160,34 @@ export default function HomeScreen() {
         style={[
           styles.gridCard,
           {
-            backgroundColor: highlight ? c.card : c.card,
+            backgroundColor: c.card,
             borderColor: highlight ? c.accent : c.border,
           },
         ]}
       >
-        {/* icon + title */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
             style={[
               styles.iconPill,
               {
-                backgroundColor: highlight
-                  ? c.border
-                  : c.tabActiveBg,
-                borderColor: highlight
-                  ? "rgba(255,255,255,0.2)"
-                  : c.border,
+                backgroundColor: highlight ? c.border : c.tabActiveBg,
+                borderColor: highlight ? "rgba(255,255,255,0.2)" : c.border,
               },
             ]}
           >
             {icon}
           </View>
 
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: highlight ? c.text : c.text },
-            ]}
-          >
-            {title}
-          </Text>
+          <Text style={[styles.cardTitle, { color: c.text }]}>{title}</Text>
         </View>
 
-        {/* description */}
         {!!description && (
           <Text
             style={[
               styles.cardSub,
               {
                 marginTop: 6,
-                color: highlight ? c.mutedText : c.mutedText,
+                color: c.mutedText,
               },
             ]}
           >
@@ -246,7 +195,6 @@ export default function HomeScreen() {
           </Text>
         )}
 
-        {/* action row */}
         {!!actionText && (
           <View
             style={{
@@ -258,17 +206,14 @@ export default function HomeScreen() {
             <Text
               style={{
                 fontWeight: "700",
-                color: highlight ? c.accent : c.accent,
+                color: c.accent,
               }}
             >
               {actionText}
             </Text>
 
             <View style={{ marginLeft: "auto" }}>
-              <ChevronRight
-                size={22}
-                color={highlight ? c.accent : c.mutedText}
-              />
+              <ChevronRight size={22} color={highlight ? c.accent : c.mutedText} />
             </View>
           </View>
         )}
@@ -294,18 +239,16 @@ export default function HomeScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* HERO */}
           <View style={{ marginBottom: 10 }}>
             <DailyFocusCard />
           </View>
 
-          {/* STATS (2 col) */}
           <View style={{ flexDirection: "row", gap: 12 }}>
             <View style={{ flex: 1 }}>
               <GridCard
                 title="Toplam soru"
-                value={loading ? "…" : String(totals.totalQuestions)}
-                subtitle="Arşivde"
+                value={loading ? "..." : String(totalQuestions)}
+                subtitle="Arsivde"
                 icon={<Layers size={18} color={c.accent} />}
               />
             </View>
@@ -313,52 +256,51 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <GridCard
                 title="Toplam ders"
-                value={loading ? "…" : String(totals.totalLessons)}
+                value={loading ? "..." : String(totalLessons)}
                 subtitle="Kategoriler"
                 icon={<BookOpen size={18} color={c.accent} />}
               />
             </View>
-
-
           </View>
 
-          {/* QUICK ACCESS */}
           <View style={{ marginTop: 16 }}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>
-              Hızlı erişim
+              Hizli erisim
             </Text>
+
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
-                  title="Günlük Tekrar"
-                  description="Unutmayı engellemek için günlük test"
-                  actionText="Testi Başlat"
+                  title="Gunluk Tekrar"
+                  description={
+                    dailyStreak > 0 ? `Seri: ${dailyStreak}. gun` : "Serini baslat"
+                  }
+                  actionText="Testi Baslat"
                   icon={<LibraryBig size={18} color={c.accent} />}
-                  onPress={() => router.push("/(test)")}
+                  onPress={() => router.push("/(test)/daily")}
                   highlight
                 />
               </View>
-
             </View>
+
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
                   title="Test Yap"
-                  description="Farklı test modları ile mini deneme yap"
-                  actionText="Testi Başlat"
+                  description="Farkli test modlari ile mini deneme yap"
+                  actionText="Testi Baslat"
                   icon={<Book size={18} color={c.accent} />}
                   onPress={() => router.push("/(test)")}
                   highlight
                 />
               </View>
-
             </View>
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 15 }}>
 
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 15 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
                   title="Yeni Soru Ekle"
-                  description="Yeni Sorular Ekleyebilirsin"
+                  description="Yeni sorular ekleyebilirsin"
                   actionText="Soru Ekle"
                   icon={<Plus size={18} color={c.accent} />}
                   onPress={() => router.push("/questions")}
@@ -368,8 +310,8 @@ export default function HomeScreen() {
 
               <View style={{ flex: 1 }}>
                 <GridCardV2
-                  title="Sorularım"
-                  description="Eklediğin soruları görüntüle"
+                  title="Sorularim"
+                  description="Ekledigin sorulari goruntule"
                   actionText="Sorulara Git"
                   icon={<BookOpen size={18} color={c.accent} />}
                   onPress={() => router.push("/questions")}
@@ -377,12 +319,8 @@ export default function HomeScreen() {
                 />
               </View>
             </View>
-
-
-
           </View>
 
-          {/* Loading overlay (opsiyonel) */}
           {loading && (
             <View style={{ marginTop: 14, alignItems: "center" }}>
               <ActivityIndicator />
@@ -395,35 +333,12 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 16,
-    flexDirection: "row",
-    gap: 12,
-    overflow: "hidden",
-  },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    lineHeight: 26,
-  },
-  heroSub: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  illWrap: { width: 110, alignItems: "flex-end", justifyContent: "flex-end" },
-  ill: { width: 110, height: 110, opacity: 0.95 },
-
   sectionTitle: { fontSize: 14, fontWeight: "900" },
-
   gridCard: {
     borderWidth: 1,
     borderRadius: 18,
     padding: 14,
-    minHeight: 120, // ✅ stats + quick access aynı boy hissi
+    minHeight: 120,
     justifyContent: "space-between",
   },
   iconPill: {
@@ -437,7 +352,4 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
   cardValue: { marginTop: 6, fontSize: 24, fontWeight: "900" },
   cardSub: { marginTop: 6, fontSize: 11, fontWeight: "700" },
-
-  actionTitle: { fontSize: 14, fontWeight: "900" },
-  actionSub: { marginTop: 6, fontSize: 12, fontWeight: "700" },
 });

@@ -1,4 +1,3 @@
-// app/(tabs)/test/result.tsx
 import { useTheme } from "@/src/context/ThemeContext";
 import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
@@ -8,32 +7,40 @@ export default function TestResultScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const { mode, total, solved } = useLocalSearchParams<{
+  const { mode, total, solved, streak, bestStreak } = useLocalSearchParams<{
     mode?: string;
     total?: string;
     solved?: string;
+    streak?: string;
+    bestStreak?: string;
   }>();
 
   const t = Number(total ?? "0");
   const s = Number(solved ?? "0");
+  const currentStreak = Number(streak ?? "0");
+  const highestStreak = Number(bestStreak ?? "0");
   const rate = t > 0 ? Math.round((s / t) * 100) : 0;
 
   const modeTitle =
     mode === "mod1"
-      ? "Zayıf Nokta Testi"
+      ? "Zayif Nokta Testi"
       : mode === "mod2"
       ? "Karma Tekrar"
       : mode === "mod3"
-      ? "Kalıcılık Kontrolü"
+      ? "Kalicilik Kontrolu"
+      : mode === "daily"
+      ? "Gunluk Tekrar"
       : "Test";
 
   const modeDesc =
     mode === "mod1"
-      ? "En çok zorlandığın sorulara odaklandın. Düzenli çözüm, zayıf noktalarını hızlı kapatır."
+      ? "En cok zorlandigin sorulara odaklandin. Duzenli cozum, zayif noktalarini hizli kapatir."
       : mode === "mod2"
-      ? "Zayıf/orta/güçlü karışık tekrar yaptın. Bu mod hem toparlar hem moral verir."
+      ? "Zayif/orta/guclu karisik tekrar yaptin. Bu mod hem toparlar hem moral verir."
       : mode === "mod3"
-      ? "Unutma riski olan konuları tazeledin. Aralıklı tekrar kalıcılığı artırır."
+      ? "Unutma riski olan konulari tazeledin. Aralikli tekrar kaliciligi artirir."
+      : mode === "daily"
+      ? "Bugune ozel secilen tekrar planini tamamladin. Kisa ama duzenli tekrar, kaliciligi guclendirir."
       : "Testi bitirdin.";
 
   const replayPath =
@@ -43,10 +50,12 @@ export default function TestResultScreen() {
       ? "/(test)/mod2"
       : mode === "mod3"
       ? "/(test)/mod3"
+      : mode === "daily"
+      ? "/(test)/daily"
       : "/(test)";
 
   const level =
-    rate >= 80 ? "Harika" : rate >= 50 ? "İyi" : "Geliştirilebilir";
+    rate >= 80 ? "Harika" : rate >= 50 ? "Iyi" : "Gelistirilebilir";
 
   const empty = t <= 0;
 
@@ -61,7 +70,7 @@ export default function TestResultScreen() {
         </View>
 
         <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-          {modeTitle} tamamlandı
+          {modeTitle} tamamlandi
         </Text>
 
         <View
@@ -75,7 +84,7 @@ export default function TestResultScreen() {
           }}
         >
           <Text style={{ color: c.accent, fontWeight: "800" }}>
-            Başarı Oranı
+            Basari Orani
           </Text>
 
           <Text
@@ -86,30 +95,55 @@ export default function TestResultScreen() {
               marginTop: 6,
             }}
           >
-            {empty ? "—" : `%${rate}`}
+            {empty ? "-" : `%${rate}`}
           </Text>
 
           <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-            Toplam {t} sorudan {s} adet doğru çözdün
+            Toplam {t} sorudan {s} adet dogru cozdun
           </Text>
 
           {!empty ? (
             <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "800" }}>
-             
-              <Text style={{ color: c.accent, fontWeight: "900" }}>{level}</Text>
-               {" "} sonuç elde ettin
+              <Text style={{ color: c.accent, fontWeight: "900" }}>{level}</Text>{" "}
+              sonuc elde ettin
             </Text>
           ) : null}
 
           <Text style={{ color: c.mutedText, marginTop: 10 }}>
             {empty
-              ? "Bu test için yeterli soru bulunamadı. Daha fazla soru ekledikçe testler kişiselleşir."
+              ? "Bu test icin yeterli soru bulunamadi. Daha fazla soru ekledikce testler kisisellesir."
               : modeDesc}
           </Text>
+
+          {mode === "daily" ? (
+            <View
+              style={{
+                marginTop: 14,
+                borderRadius: 14,
+                backgroundColor: c.inputBg,
+                borderWidth: 1,
+                borderColor: c.border,
+                padding: 12,
+              }}
+            >
+              <Text style={{ color: c.text, fontWeight: "900" }}>
+                Gunluk tekrar serin
+              </Text>
+              <Text style={{ color: c.mutedText, marginTop: 6 }}>
+                Mevcut seri:{" "}
+                <Text style={{ color: c.accent, fontWeight: "900" }}>
+                  {currentStreak}
+                </Text>
+                {" • "}En iyi seri:{" "}
+                <Text style={{ color: c.accent, fontWeight: "900" }}>
+                  {highestStreak}
+                </Text>
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={{ marginTop: 14, gap: 10 }}>
-          {/* ✅ Primary: Tekrar Çöz */}
           <Pressable
             onPress={() => router.replace(replayPath as any)}
             style={{
@@ -120,7 +154,7 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.buttonText, fontWeight: "900" }}>
-              Tekrar Çöz
+              Tekrar Coz
             </Text>
           </Pressable>
 
@@ -131,13 +165,13 @@ export default function TestResultScreen() {
               paddingVertical: 14,
               alignItems: "center",
               backgroundColor: c.card,
-              marginTop:4,
+              marginTop: 4,
               borderWidth: 1,
               borderColor: c.borderStrong,
             }}
           >
             <Text style={{ color: c.text, fontWeight: "900" }}>
-              Yeni Test Seç
+              Yeni Test Sec
             </Text>
           </Pressable>
 
@@ -153,7 +187,7 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.text, fontWeight: "900" }}>
-              Ana Sayfaya Dön
+              Ana Sayfaya Don
             </Text>
           </Pressable>
         </View>
