@@ -17,7 +17,7 @@ import { getUserLessons } from "@/src/services/question.service";
 import type { Lesson } from "@/src/types/lesson";
 
 import DailyFocusCard from "@/src/components/home/DailyFocusCard";
-import { Book, BookOpen, ChevronRight, Layers, Plus } from "lucide-react-native";
+import { Book, BookOpen, ChevronRight, Layers, LibraryBig, Plus } from "lucide-react-native";
 
 /**
  * ✅ Route'lar
@@ -103,7 +103,7 @@ export default function HomeScreen() {
           styles.gridCard,
           {
             backgroundColor: highlight ? c.buttonBg : c.card,
-            borderColor: highlight ? "transparent" : c.border,
+            borderColor: highlight ? "transparent" : c.accent,
           },
         ]}
       >
@@ -210,7 +210,7 @@ export default function HomeScreen() {
               styles.iconPill,
               {
                 backgroundColor: highlight
-                  ? "rgba(255,255,255,0.15)"
+                  ? c.border
                   : c.tabActiveBg,
                 borderColor: highlight
                   ? "rgba(255,255,255,0.2)"
@@ -300,7 +300,7 @@ export default function HomeScreen() {
           </View>
 
           {/* STATS (2 col) */}
-          <View style={{ flexDirection: "row", gap: 12, marginTop: 14 }}>
+          <View style={{ flexDirection: "row", gap: 12 }}>
             <View style={{ flex: 1 }}>
               <GridCard
                 title="Toplam soru"
@@ -330,6 +330,19 @@ export default function HomeScreen() {
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
+                  title="Günlük Tekrar"
+                  description="Unutmayı engellemek için günlük test"
+                  actionText="Testi Başlat"
+                  icon={<LibraryBig size={18} color={c.accent} />}
+                  onPress={() => router.push("/(test)")}
+                  highlight
+                />
+              </View>
+
+            </View>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+              <View style={{ flex: 1 }}>
+                <GridCardV2
                   title="Test Yap"
                   description="Farklı test modları ile mini deneme yap"
                   actionText="Testi Başlat"
@@ -340,7 +353,7 @@ export default function HomeScreen() {
               </View>
 
             </View>
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 15 }}>
 
               <View style={{ flex: 1 }}>
                 <GridCardV2
@@ -349,6 +362,7 @@ export default function HomeScreen() {
                   actionText="Soru Ekle"
                   icon={<Plus size={18} color={c.accent} />}
                   onPress={() => router.push("/questions")}
+                  highlight
                 />
               </View>
 
@@ -359,6 +373,7 @@ export default function HomeScreen() {
                   actionText="Sorulara Git"
                   icon={<BookOpen size={18} color={c.accent} />}
                   onPress={() => router.push("/questions")}
+                  highlight
                 />
               </View>
             </View>

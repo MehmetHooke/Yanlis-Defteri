@@ -149,7 +149,7 @@ export default function DailyFocusCard() {
                     borderRadius: 18,
                     padding: 14,
                     borderWidth: theme.lessonCard.edgeBorderWidth,
-                    borderColor: theme.lessonCard.edgeBorderColor,
+                    borderColor: theme.colors.accent,
                     ...theme.lessonCard.shadow,
                 }}
             >
@@ -205,11 +205,11 @@ export default function DailyFocusCard() {
                                     gap: 4,
                                 }}
                             >
-                                <Text style={{ color: c.mutedText, fontWeight: "800", fontSize: 12 }}>
+                                <Text style={{ color: c.text, fontWeight: "800", fontSize: 12 }}>
                                     Testi Başlat
                                 </Text>
 
-                                <ChevronRight size={20} color={c.mutedText} />
+                                <ChevronRight size={20} color={c.text} />
                             </View>
                         </View>
                     </Pressable>
