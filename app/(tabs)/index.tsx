@@ -248,7 +248,7 @@ export default function HomeScreen() {
               <GridCard
                 title="Toplam soru"
                 value={loading ? "..." : String(totalQuestions)}
-                subtitle="Arsivde"
+                subtitle="Arşivde"
                 icon={<Layers size={18} color={c.accent} />}
               />
             </View>
@@ -265,15 +265,15 @@ export default function HomeScreen() {
 
           <View style={{ marginTop: 16 }}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>
-              Hizli erisim
+              Hızlı erişim
             </Text>
 
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
-                  title="Gunluk Tekrar"
+                  title="Günluk Tekrar"
                   description={
-                    dailyStreak > 0 ? `Seri: ${dailyStreak}. gun` : "Serini baslat"
+                    dailyStreak > 0 ? `Seri: ${dailyStreak}. gün` : "Serini baslat"
                   }
                   actionText="Testi Baslat"
                   icon={<LibraryBig size={18} color={c.accent} />}

@@ -55,8 +55,8 @@ export default function DailyReviewScreen() {
   useTestExitToHomeOnBack({
     api,
     goHome: () => router.replace("/(tabs)"),
-    title: "Gunluk tekrardan cik",
-    message: "Gunluk tekrari kapatip anasayfaya donmek istiyor musun?",
+    title: "Günluk tekrardan cik",
+    message: "Günlük tekrarı kapatıp anasayfaya dönmek istiyor musun?",
     confirmText: "Cik",
     cancelText: "Vazgec",
     destructive: true,
@@ -87,7 +87,7 @@ export default function DailyReviewScreen() {
         setSolvedCount(0);
       } catch (e: any) {
         console.log("DAILY REVIEW LOAD ERROR:", e?.code, e?.message, e);
-        alert("Hata", e?.message ?? "Gunluk tekrar hazirlanamadi", {
+        alert("Hata", e?.message ?? "Günluk tekrar hazirlanamadi", {
           variant: "danger",
         });
         setPlan(null);
@@ -185,7 +185,7 @@ export default function DailyReviewScreen() {
               textAlign: "center",
             }}
           >
-            Gunluk tekrar icin yeterli soru bulunamadi.
+            Günluk tekrar icin yeterli soru bulunamadi.
           </Text>
           <Text
             style={{
@@ -194,8 +194,8 @@ export default function DailyReviewScreen() {
               textAlign: "center",
             }}
           >
-            Biraz daha soru ekledikce ve cozdum/cozemedim isaretledikce gunluk
-            plan daha anlamli hale gelecek.
+            Biraz daha soru ekledikçe ve çözdüm/çözemedim işaretledikçe günlük
+            plan daha anlamlı hale gelecek.
           </Text>
 
           <Pressable
@@ -209,7 +209,7 @@ export default function DailyReviewScreen() {
             }}
           >
             <Text style={{ color: c.buttonText, fontWeight: "900" }}>
-              Ana Sayfaya Don
+              Ana Sayfaya Dön
             </Text>
           </Pressable>
         </View>
@@ -224,7 +224,7 @@ export default function DailyReviewScreen() {
           className="text-center"
           style={{ color: c.text, fontSize: 18, fontWeight: "900" }}
         >
-          Gunluk Tekrar
+          Günlük Tekrar
         </Text>
 
         <Text
@@ -236,7 +236,7 @@ export default function DailyReviewScreen() {
           }}
         >
           {plan?.completed
-            ? "Bugunun gunluk tekrarini bir kez tamamladin, istersen tekrar cozebilirsin."
+            ? "Bugunun günlük tekrarını bir kez tamamladın, istersen tekrar çözebilirsin."
             : "Bugun icin secilen kisa tekrar plani."}
         </Text>
 
@@ -345,7 +345,7 @@ export default function DailyReviewScreen() {
                   color: c.testButtonTextColorGreen,
                 }}
               >
-                Cozdum
+                Çözdüm
               </Text>
             </View>
           </Pressable>
@@ -373,7 +373,7 @@ export default function DailyReviewScreen() {
                   color: "rgba(239,68,68,0.95)",
                 }}
               >
-                Cozemedim
+                Çözemedim
               </Text>
             </View>
           </Pressable>
