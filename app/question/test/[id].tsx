@@ -29,12 +29,42 @@ import PagerView from "react-native-pager-view";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type RemoteImage = { url: string; path: string };
+type ChoiceKey = "A" | "B" | "C" | "D" | "E";
+type ChoiceOption = { key: ChoiceKey; text: string };
+
+const CHOICE_KEYS: ChoiceKey[] = ["A", "B", "C", "D", "E"];
+
+function createEmptyChoiceOptions(): ChoiceOption[] {
+    return CHOICE_KEYS.map((key) => ({ key, text: "" }));
+}
+
+function normalizeChoiceOptions(options?: ChoiceOption[]) {
+    return CHOICE_KEYS.map((key) => ({
+        key,
+        text: options?.find((opt) => opt.key === key)?.text ?? "",
+    }));
+}
+
+function validateChoiceAnswer(answer: Extract<DraftAnswer, { kind: "choice" }>) {
+    const normalizedOptions = normalizeChoiceOptions(answer.options);
+
+    if (normalizedOptions.some((opt) => !opt.text.trim())) {
+        return "Tüm şık metinlerini doldurun.";
+    }
+
+    if (!answer.choice) {
+        return "Doğru şıkkı seçin.";
+    }
+
+    return null;
+}
 
 type DraftAnswer =
     | {
         id: string;
         kind: "choice";
-        choice?: "A" | "B" | "C" | "D" | "E";
+        choice?: ChoiceKey;
+        options: ChoiceOption[];
         explanation?: string;
     }
     | {
@@ -50,6 +80,11 @@ type DraftAnswer =
         text?: string;
         explanation?: string;
     };
+
+type ChoiceAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "choice" }>, "id" | "kind">>;
+type PhotoAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "photo" }>, "id" | "kind">>;
+type TextAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "text" }>, "id" | "kind">>;
+type AnswerPatch = ChoiceAnswerPatch | PhotoAnswerPatch | TextAnswerPatch;
 
 type QuestionDraft =
     | { kind: "photo"; image?: RemoteImage; imageUri?: string }
@@ -84,7 +119,7 @@ export default function EditQuestionScreen() {
     const [question, setQuestion] = useState<QuestionDraft>({ kind: "text", text: "" });
     const [lesson, setLesson] = useState("");
     const [topic, setTopic] = useState("");
-    const [answers, setAnswers] = useState<DraftAnswer[]>([{ id: Date.now().toString(), kind: "choice" }]);
+    const [answers, setAnswers] = useState<DraftAnswer[]>([{ id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() }]);
     
     const allowLeaveRef = useRef(false);
     const [initialSnap, setInitialSnap] = useState<string>("");
@@ -94,33 +129,85 @@ export default function EditQuestionScreen() {
         pagerRef.current?.setPage(idx);
     };
 
-    function ChoiceGrid({ a }: { a: Extract<DraftAnswer, { kind: "choice" }> }) {
+    const renderChoiceGrid = (a: Extract<DraftAnswer, { kind: "choice" }>) => {
         return (
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-                {(["A", "B", "C", "D", "E"] as const).map((opt) => {
-                    const active = a.choice === opt;
-                    return (
-                        <Pressable
-                            key={opt}
-                            onPress={() => updateAnswer(a.id, { choice: opt })}
+            <View style={{ marginTop: 12, gap: 10 }}>
+                <Text style={{ color: c.text, fontWeight: "800" }}>
+                    Şık metinleri
+                </Text>
+
+                {CHOICE_KEYS.map((opt) => (
+                    <View key={opt} style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                        <View
                             style={{
-                                width: 46,
-                                height: 46,
+                                width: 42,
+                                height: 42,
                                 borderRadius: 14,
                                 alignItems: "center",
                                 justifyContent: "center",
                                 borderWidth: 1,
-                                borderColor: active ? "transparent" : c.border,
-                                backgroundColor: active ? c.accent : c.inputBg,
+                                borderColor: c.border,
+                                backgroundColor: c.inputBg,
                             }}
                         >
-                            <Text style={{ color: active ? "#fff" : c.text, fontWeight: "900" }}>{opt}</Text>
-                        </Pressable>
-                    );
-                })}
+                            <Text style={{ color: c.text, fontWeight: "900" }}>{opt}</Text>
+                        </View>
+
+                        <TextInput
+                            value={a.options.find((item) => item.key === opt)?.text ?? ""}
+                            onChangeText={(text) =>
+                                updateAnswer(a.id, {
+                                    options: normalizeChoiceOptions(a.options).map((item) =>
+                                        item.key === opt ? { ...item, text } : item
+                                    ),
+                                })
+                            }
+                            placeholder={`${opt} şıkkının metni`}
+                            placeholderTextColor={c.mutedText}
+                            style={{
+                                backgroundColor: c.inputBg,
+                                borderColor: c.border,
+                                borderWidth: 1,
+                                borderRadius: 16,
+                                paddingHorizontal: 12,
+                                paddingVertical: 12,
+                                color: c.text,
+                                flex: 1,
+                            }}
+                        />
+                    </View>
+                ))}
+
+                <Text style={{ color: c.text, fontWeight: "800", marginTop: 2 }}>
+                    Doğru şık
+                </Text>
+
+                <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+                    {CHOICE_KEYS.map((opt) => {
+                        const active = a.choice === opt;
+                        return (
+                            <Pressable
+                                key={opt}
+                                onPress={() => updateAnswer(a.id, { choice: opt })}
+                                style={{
+                                    width: 46,
+                                    height: 46,
+                                    borderRadius: 14,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderWidth: 1,
+                                    borderColor: active ? "transparent" : c.border,
+                                    backgroundColor: active ? c.accent : c.inputBg,
+                                }}
+                            >
+                                <Text style={{ color: active ? "#fff" : c.text, fontWeight: "900" }}>{opt}</Text>
+                            </Pressable>
+                        );
+                    })}
+                </View>
             </View>
         );
-    }
+    };
 
     // ------- load initial data -------
     useEffect(() => {
@@ -171,13 +258,21 @@ export default function EditQuestionScreen() {
 
                 const mappedAnswers: DraftAnswer[] =
                     (q.answers ?? []).map((a: Answer) => {
-                        if (a.kind === "choice") return { id: a.id, kind: "choice", choice: a.choice, explanation: a.explanation };
+                        if (a.kind === "choice") {
+                            return {
+                                id: a.id,
+                                kind: "choice",
+                                choice: a.choice,
+                                options: normalizeChoiceOptions(a.options),
+                                explanation: a.explanation,
+                            };
+                        }
                         if (a.kind === "text") return { id: a.id, kind: "text", text: a.text, explanation: a.explanation };
                         return { id: a.id, kind: "photo", image: a.image, explanation: a.explanation };
                     });
 
                 // ✅ en az 1 kart garantisi
-                const fallbackAnswer: DraftAnswer = { id: Date.now().toString(), kind: "choice" };
+                const fallbackAnswer: DraftAnswer = { id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() };
 
                 const safeAnswers: DraftAnswer[] =
                     mappedAnswers.length > 0 ? mappedAnswers : [fallbackAnswer];
@@ -281,7 +376,7 @@ export default function EditQuestionScreen() {
     // ------- answer helpers -------
     const addAnswer = () => {
         if (answers.length >= 3) return alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
-        setAnswers((p) => [...p, { id: Date.now().toString(), kind: "choice" }]);
+        setAnswers((p) => [...p, { id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() }]);
     };
 
     const removeAnswer = (aid: string) => {
@@ -289,15 +384,38 @@ export default function EditQuestionScreen() {
         setAnswers((p) => p.filter((x) => x.id !== aid));
     };
 
-    const updateAnswer = (aid: string, data: Partial<DraftAnswer>) => {
-        setAnswers((p) => p.map((x) => (x.id === aid ? { ...x, ...data } : x)));
+    const updateAnswer = (aid: string, data: AnswerPatch) => {
+        setAnswers((p) =>
+            p.map((x) => {
+                if (x.id !== aid) return x;
+
+                if (x.kind === "choice") {
+                    const next = { ...x, ...(data as ChoiceAnswerPatch) };
+                    return { ...next, options: normalizeChoiceOptions(next.options) };
+                }
+
+                if (x.kind === "photo") {
+                    return { ...x, ...(data as PhotoAnswerPatch) };
+                }
+
+                return { ...x, ...(data as TextAnswerPatch) };
+            })
+        );
     };
 
     const switchAnswerKind = (aid: string, kind: "choice" | "photo" | "text") => {
         setAnswers((prev) =>
             prev.map((a) => {
                 if (a.id !== aid) return a;
-                if (kind === "choice") return { id: aid, kind: "choice", choice: undefined, explanation: a.explanation };
+                if (kind === "choice") {
+                    return {
+                        id: aid,
+                        kind: "choice",
+                        choice: undefined,
+                        options: a.kind === "choice" ? normalizeChoiceOptions(a.options) : createEmptyChoiceOptions(),
+                        explanation: a.explanation,
+                    };
+                }
                 if (kind === "photo") return { id: aid, kind: "photo", image: a.kind === "photo" ? a.image : undefined, imageUri: undefined, explanation: a.explanation };
                 return { id: aid, kind: "text", text: "", explanation: a.explanation };
             })
@@ -308,7 +426,7 @@ export default function EditQuestionScreen() {
     const providedAnswers = useMemo(() => {
         return answers
             .map((a) => {
-                if (a.kind === "choice") return a.choice ? a : null;
+                if (a.kind === "choice") return validateChoiceAnswer(a) ? null : a;
                 if (a.kind === "photo") return a.imageUri || a.image ? a : null;
                 return a.text?.trim() ? a : null;
             })
@@ -327,6 +445,14 @@ export default function EditQuestionScreen() {
             if (!question.imageUri && !question.image) return alert("Eksik", "Soru fotoğrafı seçilmedi.");
         } else {
             if (!question.text.trim()) return alert("Eksik", "Soru metni boş olamaz.");
+        }
+
+        for (let i = 0; i < answers.length; i++) {
+            const a = answers[i];
+            if (a.kind === "choice") {
+                const error = validateChoiceAnswer(a);
+                if (error) return alert("Eksik", `Çözüm ${i + 1}: ${error}`);
+            }
         }
 
         if (providedAnswers.length < 1) return alert("Eksik", "En az 1 çözüm eklemelisin.");
@@ -630,7 +756,6 @@ export default function EditQuestionScreen() {
                         >
                             {answers.map((a, index) => {
                                 const isChoice = a.kind === "choice";
-                                const isPhoto = a.kind === "photo";
 
                                 // ✅ edit için: remote image da göster
                                 const photoUri =
@@ -720,7 +845,7 @@ export default function EditQuestionScreen() {
                                         </View>
 
                                         {/* Choice */}
-                                        {isChoice && <ChoiceGrid a={a as any} />}
+                                        {isChoice && renderChoiceGrid(a as Extract<DraftAnswer, { kind: "choice" }>)}
 
                                         {/* Photo */}
                                         {a.kind === "photo" && (

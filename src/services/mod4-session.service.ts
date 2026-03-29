@@ -1,4 +1,4 @@
-import type { Question } from "@/src/types/question";
+import type { ChoiceKey, Question } from "@/src/types/question";
 
 export type Mod4Choice = "A" | "B" | "C" | "D" | "E";
 
@@ -12,6 +12,8 @@ export type Mod4QuestionResult = {
 
   selectedChoice: Mod4Choice;
   correctChoice: Mod4Choice;
+  selectedChoiceText?: string;
+  correctChoiceText?: string;
   isCorrect: boolean;
 
   explanation?: string;
@@ -59,4 +61,34 @@ export function getQuestionExplanation(item: Question | null) {
   );
 
   return withExplanation?.explanation?.trim() || undefined;
+}
+
+export function getChoiceAnswer(item: Question | null) {
+  const choiceAnswer = item?.answers?.find(
+    (a): a is Extract<NonNullable<Question["answers"]>[number], { kind: "choice" }> =>
+      a.kind === "choice",
+  );
+
+  return choiceAnswer ?? null;
+}
+
+export function getChoiceOptions(item: Question | null) {
+  return getChoiceAnswer(item)?.options ?? [];
+}
+
+export function getChoiceText(
+  item: Question | null,
+  choice: ChoiceKey | Mod4Choice | null | undefined,
+) {
+  if (!choice) return undefined;
+  return getChoiceOptions(item).find((opt) => opt.key === choice)?.text?.trim() || undefined;
+}
+
+export function formatChoiceLabel(
+  choice: ChoiceKey | Mod4Choice | null | undefined,
+  text?: string | null,
+) {
+  if (!choice) return "-";
+  const normalizedText = text?.trim();
+  return normalizedText ? `${choice}) ${normalizedText}` : choice;
 }

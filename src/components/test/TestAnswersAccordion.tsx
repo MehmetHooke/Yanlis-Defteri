@@ -60,10 +60,34 @@ function AnswersContent({
                     )}
 
                     {a.kind === "choice" && (
-                        <View style={chipStyle}>
-                            <Text style={{ color: c.accent, fontWeight: "900" }}>
-                                Doğru Şık: {a.choice ?? "-"}
-                            </Text>
+                        <View style={{ marginTop: 10, gap: 8 }}>
+                            <View style={chipStyle}>
+                                <Text style={{ color: c.accent, fontWeight: "900" }}>
+                                    Doğru Şık: {a.choice ?? "-"}
+                                </Text>
+                            </View>
+
+                            {!!a.options?.length && (
+                                <View style={{ gap: 8 }}>
+                                    {a.options.map((opt) => (
+                                        <View
+                                            key={opt.key}
+                                            style={{
+                                                borderRadius: 12,
+                                                borderWidth: 1,
+                                                borderColor: opt.key === a.choice ? c.accent : c.border,
+                                                backgroundColor: opt.key === a.choice ? c.tabActiveBg : c.inputBg,
+                                                paddingHorizontal: 12,
+                                                paddingVertical: 10,
+                                            }}
+                                        >
+                                            <Text style={{ color: c.text, fontWeight: "800" }}>
+                                                {opt.key}) {opt.text?.trim() || "-"}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                         </View>
                     )}
 

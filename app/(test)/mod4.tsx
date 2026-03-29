@@ -6,6 +6,9 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useTestExitToHomeOnBack } from "@/src/hooks/useTestExitToHomeOnBack";
 import { addAttemptAndUpdateQuestion } from "@/src/services/attempt.service";
 import {
+    formatChoiceLabel,
+    getChoiceOptions,
+    getChoiceText,
     getQuestionExplanation,
     getQuestionImageUrl,
     getQuestionText,
@@ -60,6 +63,7 @@ export default function TestMod4Screen() {
 
   const questionUri = useMemo(() => getQuestionImageUrl(current), [current]);
   const questionText = useMemo(() => getQuestionText(current), [current]);
+  const choiceOptions = useMemo(() => getChoiceOptions(current), [current]);
 
   const api = useAppAlert();
   const { alert, confirm } = api;
@@ -166,6 +170,8 @@ export default function TestMod4Screen() {
         questionImageUrl: getQuestionImageUrl(current),
         selectedChoice,
         correctChoice,
+        selectedChoiceText: getChoiceText(current, selectedChoice),
+        correctChoiceText: getChoiceText(current, correctChoice),
         isCorrect,
         explanation: getQuestionExplanation(current),
       };
@@ -328,11 +334,14 @@ export default function TestMod4Screen() {
                   style={{
                     color: selected ? c.accent : c.text,
                     fontWeight: "900",
-                    fontSize: 18,
-                    letterSpacing: 1,
+                    fontSize: 16,
+                    textAlign: "center",
                   }}
                 >
-                  {choice}
+                  {formatChoiceLabel(
+                    choice,
+                    choiceOptions.find((opt) => opt.key === choice)?.text
+                  )}
                 </Text>
               </Pressable>
             );

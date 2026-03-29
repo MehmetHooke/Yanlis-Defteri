@@ -3,6 +3,7 @@ import FullscreenZoomImage from "@/src/components/FullscreenZoomImage";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
     clearMod4Session,
+    formatChoiceLabel,
     getMod4Session,
     type Mod4QuestionResult,
 } from "@/src/services/mod4-session.service";
@@ -143,9 +144,10 @@ function ResultCard({
                                     color: c.mutedText,
                                     marginLeft: 6,
                                     fontWeight: "700",
+                                    flexShrink: 1,
                                 }}
                             >
-                                Senin cevabın: {item.selectedChoice}
+                                Senin cevabın: {formatChoiceLabel(item.selectedChoice, item.selectedChoiceText)}
                             </Text>
                         </View>
 
@@ -156,9 +158,10 @@ function ResultCard({
                                     color: c.testButtonTextColorGreen,
                                     marginLeft: 6,
                                     fontWeight: "800",
+                                    flexShrink: 1,
                                 }}
                             >
-                                Doğru cevap: {item.correctChoice}
+                                Doğru cevap: {formatChoiceLabel(item.correctChoice, item.correctChoiceText)}
                             </Text>
                         </View>
                     </View>

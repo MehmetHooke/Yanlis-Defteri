@@ -271,7 +271,7 @@ export default function HomeScreen() {
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
-                  title="Günluk Tekrar"
+                  title="Günlük Tekrar"
                   description={
                     dailyStreak > 0 ? `Seri: ${dailyStreak}. gün` : "Serini baslat"
                   }

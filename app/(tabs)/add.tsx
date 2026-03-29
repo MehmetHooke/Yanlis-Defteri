@@ -34,11 +34,42 @@ import {
   Type as TypeIcon
 } from "lucide-react-native";
 
+type ChoiceKey = "A" | "B" | "C" | "D" | "E";
+type ChoiceOption = { key: ChoiceKey; text: string };
+
+const CHOICE_KEYS: ChoiceKey[] = ["A", "B", "C", "D", "E"];
+
+function createEmptyChoiceOptions(): ChoiceOption[] {
+  return CHOICE_KEYS.map((key) => ({ key, text: "" }));
+}
+
+function normalizeChoiceOptions(options?: ChoiceOption[]) {
+  return CHOICE_KEYS.map((key) => ({
+    key,
+    text: options?.find((opt) => opt.key === key)?.text ?? "",
+  }));
+}
+
+function validateChoiceAnswer(answer: Extract<DraftAnswer, { kind: "choice" }>) {
+  const normalizedOptions = normalizeChoiceOptions(answer.options);
+
+  if (normalizedOptions.some((opt) => !opt.text.trim())) {
+    return "Tüm şık metinlerini doldurun.";
+  }
+
+  if (!answer.choice) {
+    return "Doğru şıkkı seçin.";
+  }
+
+  return null;
+}
+
 type DraftAnswer =
   | {
     id: string;
     kind: "choice";
-    choice?: "A" | "B" | "C" | "D" | "E";
+    choice?: ChoiceKey;
+    options: ChoiceOption[];
     explanation?: string;
   }
   | {
@@ -53,6 +84,11 @@ type DraftAnswer =
     text?: string;
     explanation?: string;
   };
+
+type ChoiceAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "choice" }>, "id" | "kind">>;
+type PhotoAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "photo" }>, "id" | "kind">>;
+type TextAnswerPatch = Partial<Omit<Extract<DraftAnswer, { kind: "text" }>, "id" | "kind">>;
+type AnswerPatch = ChoiceAnswerPatch | PhotoAnswerPatch | TextAnswerPatch;
 
 type QuestionDraft =
   | { kind: "photo"; imageUri: string | null }
@@ -80,7 +116,7 @@ export default function AddScreen() {
     setTopic("");
 
     // Cevaplar (1 tane başlangıç kartı)
-    setAnswers([{ id: Date.now().toString(), kind: "choice" }]);
+    setAnswers([{ id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() }]);
 
     // Tab geri al
     setActiveTab(0);
@@ -94,7 +130,7 @@ export default function AddScreen() {
 
   // ✅ Cevaplar: min 1 max 3
   const [answers, setAnswers] = useState<DraftAnswer[]>([
-    { id: Date.now().toString(), kind: "choice" }, // başlangıçta 1 tane hazır
+    { id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() }, // başlangıçta 1 tane hazır
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -104,7 +140,7 @@ export default function AddScreen() {
     return answers
       .map((a) => {
         if (a.kind === "choice") {
-          if (!a.choice) return null;
+          if (validateChoiceAnswer(a)) return null;
           return a;
         }
         if (a.kind === "photo") {
@@ -133,6 +169,14 @@ export default function AddScreen() {
     // cevap: en az 1 dolu çözüm
     if (providedAnswers.length < 1) return "En az 1 çözüm eklemelisin (Şıklı/Galeri/Metin).";
 
+    for (let i = 0; i < answers.length; i++) {
+      const a = answers[i];
+      if (a.kind === "choice") {
+        const error = validateChoiceAnswer(a);
+        if (error) return `Çözüm ${i + 1}: ${error}`;
+      }
+    }
+
     // text limit kontrol (sadece doluysa)
     for (let i = 0; i < answers.length; i++) {
       const a = answers[i];
@@ -153,6 +197,12 @@ export default function AddScreen() {
     const isLessonOk = !!lesson.trim();
     const isTopicOk = !!topic.trim();
     const isAtLeastOneAnswerOk = providedAnswers.length >= 1;
+    const areChoiceOptionsOk = !answers.some(
+      (a) => a.kind === "choice" && normalizeChoiceOptions(a.options).some((opt) => !opt.text.trim())
+    );
+    const areChoiceSelectionsOk = !answers.some(
+      (a) => a.kind === "choice" && normalizeChoiceOptions(a.options).every((opt) => opt.text.trim()) && !a.choice
+    );
 
     const isTextLimitOk = !answers.some(
       (a) => a.kind === "text" && (a.text?.length ?? 0) > 200
@@ -162,6 +212,8 @@ export default function AddScreen() {
       { key: "q", label: "Soru eklendi", ok: isQuestionOk },
       { key: "l", label: "Ders adı girildi", ok: isLessonOk },
       { key: "t", label: "Konu adı girildi", ok: isTopicOk },
+      { key: "co", label: "Şıklı çözümde tüm şık metinleri girildi", ok: areChoiceOptionsOk },
+      { key: "cc", label: "Doğru şık seçildi", ok: areChoiceSelectionsOk },
       { key: "a", label: "En az 1 çözüm eklendi", ok: isAtLeastOneAnswerOk },
       { key: "tx", label: "Metin çözüm 200 karakteri geçmiyor", ok: isTextLimitOk },
     ];
@@ -312,7 +364,7 @@ export default function AddScreen() {
       alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
       return;
     }
-    setAnswers((prev) => [...prev, { id: Date.now().toString(), kind: "choice" }]);
+    setAnswers((prev) => [...prev, { id: Date.now().toString(), kind: "choice", options: createEmptyChoiceOptions() }]);
   };
 
   const removeAnswer = (id: string) => {
@@ -323,8 +375,23 @@ export default function AddScreen() {
     setAnswers((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const updateAnswer = (id: string, data: Partial<DraftAnswer>) => {
-    setAnswers((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
+  const updateAnswer = (id: string, data: AnswerPatch) => {
+    setAnswers((prev) =>
+      prev.map((a) => {
+        if (a.id !== id) return a;
+
+        if (a.kind === "choice") {
+          const next = { ...a, ...(data as ChoiceAnswerPatch) };
+          return { ...next, options: normalizeChoiceOptions(next.options) };
+        }
+
+        if (a.kind === "photo") {
+          return { ...a, ...(data as PhotoAnswerPatch) };
+        }
+
+        return { ...a, ...(data as TextAnswerPatch) };
+      })
+    );
   };
 
   const switchAnswerKind = (id: string, kind: "choice" | "photo" | "text") => {
@@ -333,7 +400,13 @@ export default function AddScreen() {
         if (a.id !== id) return a;
 
         if (kind === "choice") {
-          return { id, kind: "choice", choice: undefined, explanation: a.explanation };
+          return {
+            id,
+            kind: "choice",
+            choice: undefined,
+            options: a.kind === "choice" ? normalizeChoiceOptions(a.options) : createEmptyChoiceOptions(),
+            explanation: a.explanation,
+          };
         }
         if (kind === "photo") {
           return { id, kind: "photo", imageUri: undefined, explanation: a.explanation };
@@ -368,6 +441,14 @@ export default function AddScreen() {
     if (answers.length < 1) return alert("Eksik", "En az 1 çözüm eklemelisin.");
     if (answers.length > 3) return alert("Limit", "En fazla 3 çözüm ekleyebilirsin.");
 
+    for (let i = 0; i < answers.length; i++) {
+      const a = answers[i];
+      if (a.kind === "choice") {
+        const error = validateChoiceAnswer(a);
+        if (error) return alert("Eksik", `Çözüm ${i + 1}: ${error}`);
+      }
+    }
+
     try {
       setLoading(true);
 
@@ -385,6 +466,10 @@ export default function AddScreen() {
               id: a.id,
               kind: a.kind,
               choice: a.choice,
+              options: normalizeChoiceOptions(a.options).map((opt) => ({
+                key: opt.key,
+                text: opt.text.trim(),
+              })),
               explanation: trimOrUndefined(a.explanation),
             };
           }
@@ -480,11 +565,53 @@ export default function AddScreen() {
     );
   }
 
-  function ChoiceGrid({ a }: { a: Extract<DraftAnswer, { kind: "choice" }> }) {
+  const renderChoiceGrid = (a: Extract<DraftAnswer, { kind: "choice" }>) => {
     return (
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-        {(["A", "B", "C", "D", "E"] as const).map((opt) => {
-          const active = a.choice === opt;
+      <View style={{ marginTop: 12, gap: 10 }}>
+        <Text style={{ color: c.text, fontWeight: "800" }}>
+          Şık metinleri
+        </Text>
+
+        {CHOICE_KEYS.map((opt) => (
+          <View key={opt} style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: c.border,
+                backgroundColor: c.inputBg,
+              }}
+            >
+              <Text style={{ color: c.text, fontWeight: "900" }}>{opt}</Text>
+            </View>
+
+            <TextInput
+              value={a.options.find((item) => item.key === opt)?.text ?? ""}
+              onChangeText={(text) =>
+                updateAnswer(a.id, {
+                  options: normalizeChoiceOptions(a.options).map((item) =>
+                    item.key === opt ? { ...item, text } : item
+                  ),
+                })
+              }
+              placeholder={`${opt} şıkkının metni`}
+              placeholderTextColor={c.mutedText}
+              style={[styles.input, { flex: 1 }]}
+            />
+          </View>
+        ))}
+
+        <Text style={{ color: c.text, fontWeight: "800", marginTop: 2 }}>
+          Doğru cevap
+        </Text>
+
+        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+          {CHOICE_KEYS.map((opt) => {
+            const active = a.choice === opt;
           return (
             <Pressable
               key={opt}
@@ -503,10 +630,11 @@ export default function AddScreen() {
               <Text style={{ color: active ? "#fff" : c.text, fontWeight: "900" }}>{opt}</Text>
             </Pressable>
           );
-        })}
+          })}
+        </View>
       </View>
     );
-  }
+  };
 
   /* -------------------- RENDER -------------------- */
   if (loading) {
@@ -679,7 +807,6 @@ export default function AddScreen() {
               {/* Answer cards */}
               {answers.map((a, index) => {
                 const isChoice = a.kind === "choice";
-                const isPhoto = a.kind === "photo";
 
                 return (
                   <View key={a.id} style={[styles.card, { padding: 14, marginBottom: 12 }]}>
@@ -766,7 +893,7 @@ export default function AddScreen() {
                     </View>
 
                     {/* Choice */}
-                    {isChoice && <ChoiceGrid a={a} />}
+                    {isChoice && renderChoiceGrid(a)}
 
                     {/* Photo */}
                     {a.kind === "photo" && (

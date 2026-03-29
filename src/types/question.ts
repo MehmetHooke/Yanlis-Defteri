@@ -1,10 +1,18 @@
 // src/types/question.ts
 
+export type ChoiceKey = "A" | "B" | "C" | "D" | "E";
+
+export type ChoiceOption = {
+  key: ChoiceKey;
+  text: string;
+};
+
 export type Answer =
   | {
       id: string;
       kind: "choice";
-      choice?: "A" | "B" | "C" | "D" | "E";
+      choice?: ChoiceKey;
+      options?: ChoiceOption[];
       explanation?: string;
     }
   | {

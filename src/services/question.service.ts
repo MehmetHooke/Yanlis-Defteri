@@ -29,6 +29,9 @@ import {
   uploadBytes,
 } from "firebase/storage";
 
+type ChoiceKey = "A" | "B" | "C" | "D" | "E";
+type ChoiceOption = { key: ChoiceKey; text: string };
+
 /** ---------- helpers ---------- **/
 function normalizeKey(input: string) {
   return input.trim().replace(/\s+/g, " ").toLowerCase();
@@ -282,7 +285,8 @@ export async function addQuestionV3(params: {
     | {
         id: string;
         kind: "choice";
-        choice?: "A" | "B" | "C" | "D" | "E";
+        choice?: ChoiceKey;
+        options?: ChoiceOption[];
         explanation?: string;
       }
     | {
@@ -318,9 +322,31 @@ export async function addQuestionV3(params: {
   if (answers.length < 1) throw new Error("En az 1 çözüm kartı olmalı.");
   if (answers.length > 3) throw new Error("En fazla 3 çözüm ekleyebilirsin.");
 
+  for (const a of answers) {
+    if (a.kind !== "choice") continue;
+
+    const normalizedOptions =
+      a.options?.map((opt) => ({
+        key: opt.key,
+        text: opt.text.trim(),
+      })) ?? [];
+
+    if (normalizedOptions.some((opt) => !opt.text)) {
+      throw new Error("Şıklı çözüm için tüm şık metinlerini doldurun.");
+    }
+
+    if (normalizedOptions.length > 0 && !a.choice) {
+      throw new Error("Doğru şıkkı seçin.");
+    }
+  }
+
   // ✅ sadece "dolu" cevapları dikkate al
   const providedAnswers = answers.filter((a) => {
-    if (a.kind === "choice") return !!a.choice;
+    if (a.kind === "choice") {
+      const optionCount =
+        a.options?.filter((opt) => opt.text?.trim().length).length ?? 0;
+      return optionCount === 5;
+    }
     if (a.kind === "photo") return !!a.imageUri;
     return !!a.text?.trim();
   });
@@ -332,6 +358,22 @@ export async function addQuestionV3(params: {
 
   // ✅ text limit (istersen)
   for (const a of providedAnswers) {
+    if (a.kind === "choice") {
+      if (!a.choice) {
+        throw new Error("Doğru şıkkı seçin.");
+      }
+
+      const normalizedOptions =
+        a.options?.map((opt) => ({
+          key: opt.key,
+          text: opt.text.trim(),
+        })) ?? [];
+
+      if (normalizedOptions.length !== 5 || normalizedOptions.some((opt) => !opt.text)) {
+        throw new Error("Şıklı çözüm için tüm şık metinlerini doldurun.");
+      }
+    }
+
     if (a.kind === "text" && (a.text?.length ?? 0) > 200) {
       throw new Error("Metin çözüm 200 karakteri geçemez.");
     }
@@ -366,7 +408,16 @@ export async function addQuestionV3(params: {
     }
 
     if (a.kind === "choice") {
-      const obj: any = { id: a.id, kind: "choice", choice: a.choice };
+      const obj: any = {
+        id: a.id,
+        kind: "choice",
+        choice: a.choice,
+        options:
+          a.options?.map((opt) => ({
+            key: opt.key,
+            text: opt.text.trim(),
+          })) ?? [],
+      };
 
       const exp = a.explanation?.trim();
       if (exp) obj.explanation = exp;
@@ -665,7 +716,8 @@ type UpdateDraftAnswer =
   | {
       id: string;
       kind: "choice";
-      choice?: "A" | "B" | "C" | "D" | "E";
+      choice?: ChoiceKey;
+      options?: ChoiceOption[];
       explanation?: string;
     }
   | {
@@ -726,8 +778,30 @@ export async function updateQuestionV3(params: {
   if (answers.length < 1) throw new Error("En az 1 çözüm kartı olmalı.");
   if (answers.length > 3) throw new Error("En fazla 3 çözüm ekleyebilirsin.");
 
+  for (const a of answers) {
+    if (a.kind !== "choice") continue;
+
+    const normalizedOptions =
+      a.options?.map((opt) => ({
+        key: opt.key,
+        text: opt.text.trim(),
+      })) ?? [];
+
+    if (normalizedOptions.some((opt) => !opt.text)) {
+      throw new Error("Şıklı çözüm için tüm şık metinlerini doldurun.");
+    }
+
+    if (normalizedOptions.length > 0 && !a.choice) {
+      throw new Error("Doğru şıkkı seçin.");
+    }
+  }
+
   const providedAnswers = answers.filter((a) => {
-    if (a.kind === "choice") return !!a.choice;
+    if (a.kind === "choice") {
+      const optionCount =
+        a.options?.filter((opt) => opt.text?.trim().length).length ?? 0;
+      return optionCount === 5;
+    }
     if (a.kind === "photo") return !!a.imageUri || !!a.image;
     return !!a.text?.trim();
   });
@@ -737,6 +811,22 @@ export async function updateQuestionV3(params: {
   }
 
   for (const a of providedAnswers) {
+    if (a.kind === "choice") {
+      if (!a.choice) {
+        throw new Error("Doğru şıkkı seçin.");
+      }
+
+      const normalizedOptions =
+        a.options?.map((opt) => ({
+          key: opt.key,
+          text: opt.text.trim(),
+        })) ?? [];
+
+      if (normalizedOptions.length !== 5 || normalizedOptions.some((opt) => !opt.text)) {
+        throw new Error("Şıklı çözüm için tüm şık metinlerini doldurun.");
+      }
+    }
+
     if (a.kind === "text" && (a.text?.length ?? 0) > 200) {
       throw new Error("Metin çözüm 200 karakteri geçemez.");
     }
@@ -865,6 +955,11 @@ export async function updateQuestionV3(params: {
         id: a.id,
         kind: "choice",
         choice: a.choice,
+        options:
+          a.options?.map((opt) => ({
+            key: opt.key,
+            text: opt.text.trim(),
+          })) ?? [],
         ...(a.explanation?.trim() ? { explanation: a.explanation.trim() } : {}),
       });
       continue;
