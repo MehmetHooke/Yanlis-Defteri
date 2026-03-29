@@ -1,18 +1,10 @@
 import DailyFocusCard from "@/src/components/home/DailyFocusCard";
 import { useTheme } from "@/src/context/ThemeContext";
 import { auth } from "@/src/lib/firebase";
-import { getDailyReviewStreak } from "@/src/services/daily-review.service";
 import { getUserLessons } from "@/src/services/question.service";
 import type { Lesson } from "@/src/types/lesson";
 import { router } from "expo-router";
-import {
-  Book,
-  BookOpen,
-  ChevronRight,
-  Layers,
-  LibraryBig,
-  Plus,
-} from "lucide-react-native";
+import { Book, BookOpen, ChevronRight, Layers, Plus } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,12 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
-  const user = auth.currentUser;
-  const userId = user?.uid;
+  const userId = auth.currentUser?.uid;
 
   const [loading, setLoading] = useState(true);
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [dailyStreak, setDailyStreak] = useState(0);
 
   const totalLessons = lessons.length;
   const totalQuestions = lessons.reduce(
@@ -68,24 +58,6 @@ export default function HomeScreen() {
     };
   }, [userId]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const streak = await getDailyReviewStreak();
-        if (!cancelled) setDailyStreak(streak.current);
-      } catch (e) {
-        console.log("Daily streak load error:", e);
-        if (!cancelled) setDailyStreak(0);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const GridCard = ({
     title,
     value,
@@ -96,49 +68,42 @@ export default function HomeScreen() {
     value?: string;
     subtitle?: string;
     icon: React.ReactNode;
-  }) => {
-    return (
-      <View
-        style={[
-          styles.gridCard,
-          {
-            backgroundColor: c.card,
-            borderColor: c.accent,
-          },
-        ]}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={[
-              styles.iconPill,
-              {
-                backgroundColor: c.tabActiveBg,
-                borderColor: c.border,
-              },
-            ]}
-          >
-            {icon}
-          </View>
-
-          <Text style={[styles.cardTitle, { color: c.text }]} numberOfLines={1}>
-            {title}
-          </Text>
+  }) => (
+    <View
+      style={[
+        styles.gridCard,
+        {
+          backgroundColor: c.card,
+          borderColor: c.accent,
+        },
+      ]}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View
+          style={[
+            styles.iconPill,
+            {
+              backgroundColor: c.tabActiveBg,
+              borderColor: c.border,
+            },
+          ]}
+        >
+          {icon}
         </View>
 
-        <View style={{ marginTop: 2 }}>
-          {!!value && (
-            <Text style={[styles.cardValue, { color: c.text }]}>{value}</Text>
-          )}
-
-          {!!subtitle && (
-            <Text style={[styles.cardSub, { color: c.mutedText }]}>
-              {subtitle}
-            </Text>
-          )}
-        </View>
+        <Text style={[styles.cardTitle, { color: c.text }]} numberOfLines={1}>
+          {title}
+        </Text>
       </View>
-    );
-  };
+
+      <View style={{ marginTop: 2 }}>
+        {!!value && <Text style={[styles.cardValue, { color: c.text }]}>{value}</Text>}
+        {!!subtitle && (
+          <Text style={[styles.cardSub, { color: c.mutedText }]}>{subtitle}</Text>
+        )}
+      </View>
+    </View>
+  );
 
   const GridCardV2 = ({
     title,
@@ -203,14 +168,7 @@ export default function HomeScreen() {
               marginTop: 14,
             }}
           >
-            <Text
-              style={{
-                fontWeight: "700",
-                color: c.accent,
-              }}
-            >
-              {actionText}
-            </Text>
+            <Text style={{ fontWeight: "700", color: c.accent }}>{actionText}</Text>
 
             <View style={{ marginLeft: "auto" }}>
               <ChevronRight size={22} color={highlight ? c.accent : c.mutedText} />
@@ -248,7 +206,7 @@ export default function HomeScreen() {
               <GridCard
                 title="Toplam soru"
                 value={loading ? "..." : String(totalQuestions)}
-                subtitle="Arşivde"
+                subtitle="Arsivde"
                 icon={<Layers size={18} color={c.accent} />}
               />
             </View>
@@ -265,23 +223,8 @@ export default function HomeScreen() {
 
           <View style={{ marginTop: 16 }}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>
-              Hızlı erişim
+              Hizli erisim
             </Text>
-
-            <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
-              <View style={{ flex: 1 }}>
-                <GridCardV2
-                  title="Günlük Tekrar"
-                  description={
-                    dailyStreak > 0 ? `Seri: ${dailyStreak}. gün` : "Serini baslat"
-                  }
-                  actionText="Testi Baslat"
-                  icon={<LibraryBig size={18} color={c.accent} />}
-                  onPress={() => router.push("/(test)/daily")}
-                  highlight
-                />
-              </View>
-            </View>
 
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
