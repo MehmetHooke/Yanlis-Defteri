@@ -23,24 +23,24 @@ export default function TestResultScreen() {
 
   const modeTitle =
     mode === "mod1"
-      ? "Zayif Nokta Testi"
+      ? "Zayıf Nokta Testi"
       : mode === "mod2"
       ? "Karma Tekrar"
       : mode === "mod3"
-      ? "Kalicilik Kontrolu"
+      ? "Kalıcılık Kontrolü"
       : mode === "daily"
-      ? "Gunluk Tekrar"
+      ? "Günlük Tekrar"
       : "Test";
 
   const modeDesc =
     mode === "mod1"
-      ? "En cok zorlandigin sorulara odaklandin. Duzenli cozum, zayif noktalarini hizli kapatir."
+      ? "En çok zorlandiğin sorulara odaklandın. Düzenli çözüm, zayıf noktalarını hızlı kapatır."
       : mode === "mod2"
       ? "Zayif/orta/guclu karisik tekrar yaptin. Bu mod hem toparlar hem moral verir."
       : mode === "mod3"
-      ? "Unutma riski olan konulari tazeledin. Aralikli tekrar kaliciligi artirir."
+      ? "Unutma riski olan konuları tazeledin. Aralıklı tekrar kalıcılığı artırır."
       : mode === "daily"
-      ? "Bugune ozel secilen tekrar planini tamamladin. Kisa ama duzenli tekrar, kaliciligi guclendirir."
+      ? "Bugüne özel seçilen tekrar planını tamamladın. Kısa ama duzenli tekrar, kalıcılıgı güçlendirir."
       : "Testi bitirdin.";
 
   const replayPath =
@@ -55,7 +55,7 @@ export default function TestResultScreen() {
       : "/(test)";
 
   const level =
-    rate >= 80 ? "Harika" : rate >= 50 ? "Iyi" : "Gelistirilebilir";
+    rate >= 80 ? "Harika" : rate >= 50 ? "İyi" : "Geliştirilebilir";
 
   const empty = t <= 0;
 
@@ -70,7 +70,7 @@ export default function TestResultScreen() {
         </View>
 
         <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-          {modeTitle} tamamlandi
+          {modeTitle} tamamlandı
         </Text>
 
         <View
@@ -84,7 +84,7 @@ export default function TestResultScreen() {
           }}
         >
           <Text style={{ color: c.accent, fontWeight: "800" }}>
-            Basari Orani
+            Başarı Oranı
           </Text>
 
           <Text
@@ -99,19 +99,19 @@ export default function TestResultScreen() {
           </Text>
 
           <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "700" }}>
-            Toplam {t} sorudan {s} adet dogru cozdun
+            Toplam {t} sorudan {s} adet doğru çözdün
           </Text>
 
           {!empty ? (
             <Text style={{ color: c.mutedText, marginTop: 6, fontWeight: "800" }}>
               <Text style={{ color: c.accent, fontWeight: "900" }}>{level}</Text>{" "}
-              sonuc elde ettin
+              sonuç elde ettin
             </Text>
           ) : null}
 
           <Text style={{ color: c.mutedText, marginTop: 10 }}>
             {empty
-              ? "Bu test icin yeterli soru bulunamadi. Daha fazla soru ekledikce testler kisisellesir."
+              ? "Bu test için yeterli soru bulunamadı. Daha fazla soru ekledikçe testler kişiselleşir."
               : modeDesc}
           </Text>
 
@@ -127,7 +127,7 @@ export default function TestResultScreen() {
               }}
             >
               <Text style={{ color: c.text, fontWeight: "900" }}>
-                Gunluk tekrar serin
+                Günlük tekrar serin
               </Text>
               <Text style={{ color: c.mutedText, marginTop: 6 }}>
                 Mevcut seri:{" "}
@@ -154,7 +154,7 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.buttonText, fontWeight: "900" }}>
-              Tekrar Coz
+              Tekrar Çöz
             </Text>
           </Pressable>
 
@@ -171,7 +171,7 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.text, fontWeight: "900" }}>
-              Yeni Test Sec
+              Yeni Test Seç
             </Text>
           </Pressable>
 
@@ -187,7 +187,7 @@ export default function TestResultScreen() {
             }}
           >
             <Text style={{ color: c.text, fontWeight: "900" }}>
-              Ana Sayfaya Don
+              Ana Sayfaya Dön
             </Text>
           </Pressable>
         </View>

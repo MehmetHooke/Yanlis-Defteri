@@ -206,7 +206,7 @@ export default function HomeScreen() {
               <GridCard
                 title="Toplam soru"
                 value={loading ? "..." : String(totalQuestions)}
-                subtitle="Arsivde"
+                subtitle="Arşivde"
                 icon={<Layers size={18} color={c.accent} />}
               />
             </View>
@@ -223,15 +223,15 @@ export default function HomeScreen() {
 
           <View style={{ marginTop: 16 }}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>
-              Hizli erisim
+              Hızlı erişim
             </Text>
 
             <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <GridCardV2
                   title="Test Yap"
-                  description="Farkli test modlari ile mini deneme yap"
-                  actionText="Testi Baslat"
+                  description="Farklı test modları ile mini deneme yap"
+                  actionText="Testi Başlat"
                   icon={<Book size={18} color={c.accent} />}
                   onPress={() => router.push("/(test)")}
                   highlight
@@ -246,15 +246,15 @@ export default function HomeScreen() {
                   description="Yeni sorular ekleyebilirsin"
                   actionText="Soru Ekle"
                   icon={<Plus size={18} color={c.accent} />}
-                  onPress={() => router.push("/questions")}
+                  onPress={() => router.push("/add")}
                   highlight
                 />
               </View>
 
               <View style={{ flex: 1 }}>
                 <GridCardV2
-                  title="Sorularim"
-                  description="Ekledigin sorulari goruntule"
+                  title="Sorularım"
+                  description="Ekledigin soruları görüntüle"
                   actionText="Sorulara Git"
                   icon={<BookOpen size={18} color={c.accent} />}
                   onPress={() => router.push("/questions")}
